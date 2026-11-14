@@ -21,6 +21,8 @@ import SchedulingLab from './pages/admin/SchedulingLab.jsx';
 import Resources from './pages/admin/Resources.jsx';
 import Reports from './pages/admin/Reports.jsx';
 import Users from './pages/admin/Users.jsx';
+import ExamMonitoring from './pages/admin/ExamMonitoring.jsx';
+import ExamPcs from './pages/admin/ExamPcs.jsx';
 
 const HOME = { admin: '/admin', recruiter: '/recruiter', student: '/student' };
 
@@ -60,6 +62,8 @@ export default function App() {
 
       <Route path="/admin" element={<ProtectedRoute role="admin"><Layout /></ProtectedRoute>}>
         <Route index element={<AdminDashboard />} />
+        <Route path="monitoring" element={<ExamMonitoring />} />
+        <Route path="exam-pcs" element={<ExamPcs />} />
         <Route path="monitor" element={<KernelMonitor />} />
         <Route path="scheduling" element={<SchedulingLab />} />
         <Route path="resources" element={<Resources />} />

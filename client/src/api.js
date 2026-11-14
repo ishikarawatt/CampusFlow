@@ -123,3 +123,19 @@ export const users = {
   list: () => api.get('/users'),
   create: (data) => api.post('/users', data),
 };
+
+// --- Exam PC Monitoring & Supervision ---
+export const examMonitoring = {
+  pcs: () => api.get('/admin/monitoring/pcs'),
+  events: (params) => api.get('/admin/monitoring/events', { params }),
+  reviewEvent: (id, data) => api.patch(`/admin/monitoring/events/${id}`, data),
+  allocateSession: (data) => api.post('/admin/exam-sessions', data),
+  startSession: (id) => api.post(`/admin/exam-sessions/${id}/start`),
+  endSession: (id) => api.post(`/admin/exam-sessions/${id}/end`),
+  computers: () => api.get('/admin/computers'),
+  createComputer: (data) => api.post('/admin/computers', data),
+  regenerateEnrollment: (id) => api.post(`/admin/computers/${id}/regenerate-enrollment`),
+  prohibitedProcesses: () => api.get('/admin/prohibited-processes'),
+  addProhibitedProcess: (data) => api.post('/admin/prohibited-processes', data),
+  removeProhibitedProcess: (id) => api.delete(`/admin/prohibited-processes/${id}`),
+};

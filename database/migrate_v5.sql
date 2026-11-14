@@ -13,6 +13,7 @@ USE campusflow;
 
 -- ------------------------------------------------------------ computers --
 CREATE TABLE IF NOT EXISTS computers (
+  
   id              INT AUTO_INCREMENT PRIMARY KEY,
   resource_id     INT NOT NULL,
   pc_code         VARCHAR(50) NOT NULL UNIQUE,

@@ -1,7 +1,10 @@
 // CampusFlow OS API — entry point.
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const cors = require('cors');
+const { initSocket } = require('./socket');
+const { router: agentRouter, startSweeper } = require('./routes/agent');
 
 if (!process.env.JWT_SECRET) {
   console.error('FATAL: JWT_SECRET environment variable is missing.');
@@ -9,6 +12,13 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize real-time Socket.IO subsystem
+initSocket(server);
+
+// Start the 5 s agent sweeper for monitoring offline agent deaths
+startSweeper();
 
 app.use(cors());
 app.use(express.json());
@@ -29,6 +39,7 @@ app.use('/api/users', require('./routes/users'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/agent', agentRouter);
 
 // 404 for unknown API routes
 app.use('/api', (req, res) => {
@@ -47,8 +58,8 @@ app.use((err, req, res, _next) => {
 });
 
 const PORT = Number(process.env.PORT) || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`CampusFlow API listening on http://localhost:${PORT}/api`);
 });
 
-module.exports = app;
+module.exports = { app, server };
