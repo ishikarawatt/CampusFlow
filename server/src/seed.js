@@ -213,8 +213,40 @@ async function seed(conn) {
     ]);
   }
 
-  console.log('Seeded: 3 users (admin+recruiters), 12 students, 2 companies, 3 drives,');
-  console.log('        24 applications, 8 test questions, 7 resources.');
+  // ---------- computers (exam monitoring) ----------
+  const crypto = require('crypto');
+  const [labs] = await conn.query("SELECT id, name FROM resources WHERE type = 'lab' ORDER BY id LIMIT 2");
+  let pcCount = 0;
+  for (const lab of labs) {
+    const prefix = lab.name.toUpperCase().replace(/\s+/g, '-');
+    for (let i = 1; i <= 5; i++) {
+      const pcCode = `${prefix}-PC${String(i).padStart(2, '0')}`;
+      const enrollCode = `ENROLL-${prefix}-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+      await conn.query(
+        'INSERT INTO computers (resource_id, pc_code, enrollment_code, status) VALUES (?, ?, ?, ?)',
+        [lab.id, pcCode, enrollCode, 'available']
+      );
+      pcCount++;
+    }
+  }
+
+  // ---------- prohibited processes ----------
+  const defaultProhibited = [
+    'discord.exe',
+    'telegram.exe',
+    'anydesk.exe',
+    'teamviewer.exe',
+    'whatsapp.exe',
+    'slack.exe',
+    'zoom.exe',
+    'chatgpt.exe',
+  ];
+  for (const proc of defaultProhibited) {
+    await conn.query('INSERT IGNORE INTO prohibited_processes (process_name) VALUES (?)', [proc]);
+  }
+
+  console.log(`Seeded: 3 users, 12 students, 2 companies, 3 drives, 24 apps, 8 test qs, 7 resources,`);
+  console.log(`        ${pcCount} exam computers across ${labs.length} labs, ${defaultProhibited.length} prohibited processes.`);
   console.log('All demo accounts use password: password123');
 }
 
@@ -243,7 +275,12 @@ async function main() {
         .join('\n')
         .trim();
       if (!code) continue;
-      await conn.query(stmt);
+      try {
+        await conn.query(stmt);
+      } catch (err) {
+        console.error('Failed statement:', stmt);
+        throw err;
+      }
     }
     console.log('Schema created (tables, triggers, procedure, view).');
 
