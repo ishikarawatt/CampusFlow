@@ -5,11 +5,11 @@ tests, shortlisting and interviews — where the *system* does the scheduling an
 show up. Built with real OS concepts (locks, critical sections, scheduling, Banker's algorithm)
 running on a real database.
 
-Built by a 4-member team for a PBL evaluation (Operating Systems + DBMS).
+Built by a 4-member team for an undergraduate PBL evaluation (Operating Systems + DBMS).
 
 ---
 
-## ✨ Features implemented (Phase 1)
+## ✨ Features implemented
 
 ### 🎓 Student portal
 - **Find drives** — only drives matching your profile (CGPA, branch, backlogs, graduation year) are shown
@@ -30,40 +30,49 @@ Built by a 4-member team for a PBL evaluation (Operating Systems + DBMS).
 ### 🛠️ Admin — Control Center
 - **All drives** — every drive's stage and progress (applied → tested → shortlisted) with one-click next steps
 - **Full schedule** — every test and interview session across all drives, with venues and seat counts
-- **Resources** — add labs (with seating capacity) and interview rooms; the auto-scheduler plans against this inventory. Manual bookings run a safety check that refuses overbooking with an explanation
-- **System Monitor** — live view of locks, waits and transactions as the system works
-- **Scheduling Lab** — CPU scheduling simulator (FCFS / Priority / Round-Robin) with Gantt charts
-- **Reports** — placement progress per drive and per company
-- **Users** — directory of all accounts
+- **Resources** — add labs (with seating capacity) and interview rooms; the auto-scheduler plans against this inventory. Allocations run the Banker's safety check that refuses unsafe allocations with an explanation
+- **System Monitor** — live view of lock acquisitions, queue waits and audit log as the system works
+- **Scheduling Lab** — interview scheduler simulation comparing FCFS vs. Non-preemptive Priority algorithms *(Note: Round Robin was intentionally removed because preemptive time-slicing is conceptually invalid for physical human interviews)*
+- **Reports** — placement progress per drive and per company via the `v_drive_report` database view
+- **Users** — directory of accounts with admin capability to create new recruiter and admin accounts
 
-### ⚙️ The pipeline engine (the core idea)
-Recruiters configure; the system executes. Test sessions are batched into labs, every seat is
-assigned inside a serialized database critical section (`SELECT … FOR UPDATE` — no overselling,
-ever), tests are auto-graded, shortlists are score-based, and interviews are timetabled
-round-robin across panels and rooms. Students are notified at every step.
+### ⚙️ The pipeline engine & DBMS architecture
+- **Row-Level Mutual Exclusion**: Every seat booking enters a serialized database critical section using `SELECT … FOR UPDATE` inside a transaction.
+- **Deadlock Avoidance**: Resource allocations evaluate the Banker's Algorithm against available units and upcoming demands.
+- **CPU Scheduling**: Auto-scheduler orders interviews using Non-preemptive Priority (highest CGPA first) or FCFS (application order).
+- **Audit Triggers**: Database lifecycle mutations (`INSERT`/`UPDATE`/`DELETE` on `bookings`, `applications`, and `allocations`) write directly to `audit_log`.
+- **Stored Procedure Note**: The schema includes `sp_generate_shortlist`, a direct SQL stored procedure for criteria-based shortlisting (executable directly via MySQL: `CALL sp_generate_shortlist(drive_id, @count)`). The web application uses score-based test pipeline evaluation (`publishResults()` in `pipeline.js`).
 
 ---
 
 ## 🚀 Run it locally
 
-Full step-by-step guide (including troubleshooting): **[docs/03_INSTALLATION.md](docs/03_INSTALLATION.md)**
+Detailed step-by-step instructions for Windows plain install and troubleshooting are in **[docs/03_INSTALLATION.md](docs/03_INSTALLATION.md)**.
+
+### Prerequisites
+- Node.js 18+ (`node --version`)
+- MySQL 8.0+ running locally on port 3306 (or via Docker as optional)
+
+### Quick Start
 
 ```bash
-# 1. Database (MySQL 8)
-docker compose up -d
-
-# 2. Backend → http://localhost:5000
+# 1. Backend setup
 cd server
-cp .env.example .env        # put your MySQL password in DB_PASSWORD
+cp .env.example .env
+# Edit .env: set DB_PASSWORD and a long random JWT_SECRET
 npm install
-npm run db:reset            # builds schema + demo data
-npm run dev
+npm run db:reset            # builds schema, triggers, seed data & records migrations
+npm run dev                 # API starts on http://localhost:5000/api
 
-# 3. Frontend → http://localhost:5173
+# 2. Frontend setup (in a separate terminal)
 cd ../client
 npm install
-npm run dev
+npm run dev                 # Client starts on http://localhost:5173
 ```
+
+*(Docker is optional: `docker compose up -d` can be used instead of a local MySQL install).*
+
+---
 
 ## 🔑 Demo logins (password: `password123`)
 
@@ -73,27 +82,35 @@ npm run dev
 | Recruiter | `priya@techcorp.com` | Hiring dashboard |
 | Student | `aarav@student.local` | My Applications |
 
-One-click demo buttons are on the login page.
+One-click demo buttons are provided on the login page.
+
+---
 
 ## 📚 Docs
 
 | Doc | What it covers |
 |---|---|
-| [docs/01_TEAM_CONTRIBUTIONS.md](docs/01_TEAM_CONTRIBUTIONS.md) | What each team member built (Phase 1) |
-| [docs/02_PHASE2_PLAN.md](docs/02_PHASE2_PLAN.md) | Features planned for the next evaluation, with owners |
-| [docs/03_INSTALLATION.md](docs/03_INSTALLATION.md) | How to install and run the app on your machine |
+| [docs/01_TEAM_CONTRIBUTIONS.md](docs/01_TEAM_CONTRIBUTIONS.md) | What each team member built |
+| [docs/02_PHASE2_PLAN.md](docs/02_PHASE2_PLAN.md) | Phase 2 stabilization and roadmap |
+| [docs/03_INSTALLATION.md](docs/03_INSTALLATION.md) | Complete installation & setup guide |
+| [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Phase 0 comprehensive codebase audit report |
+| [docs/PHASE2_VERIFICATION.md](docs/PHASE2_VERIFICATION.md) | Phase 2 stabilization test results & verification matrix |
 
 Older working documents are preserved in `docs/archive/`.
 
+---
+
 ## 🛠️ Tech stack
 
-- **Frontend:** React + Vite + Tailwind CSS, React Router, Axios
-- **Backend:** Node.js + Express, JWT auth, bcrypt
-- **Database:** MySQL 8 (InnoDB) — 3NF schema, triggers, stored procedures, row-level locking
+- **Frontend:** React 18 + Vite + Tailwind CSS, React Router DOM, Axios
+- **Backend:** Node.js + Express, JWT authentication, bcryptjs, mysql2
+- **Database:** MySQL 8 (InnoDB) — 3NF schema, declarative CHECK constraints, triggers, stored procedure, view
+
+---
 
 ## 👥 Team
 
-- **Ishika Rawat** (lead) — M1 Platform Core & Data Foundation
+- **Ishika Rawat** (Lead) — M1 Platform Core & Data Foundation
 - **Akansha Parley** — M2 Drives, Eligibility & Interview Scheduling
 - **Trisha Dabral** — M3 Synchronization & Concurrency Control
 - **Akshay Singh Gusain** — M4 Resource Allocation & Control Center

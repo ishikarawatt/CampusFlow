@@ -188,15 +188,20 @@ router.post(
       }
       const venueId = lab.status === 'reserved' ? labs[0].id : null;
 
-      // 5. Write the real interview slots (one transaction — all or nothing).
+      // 5. Write the real interview slots and student bookings (one transaction — all or nothing).
       const conn = await pool.getConnection();
       try {
         await conn.beginTransaction();
         for (const t of timeline) {
-          await conn.query(
-            `INSERT INTO slots (drive_id, resource_id, type, title, starts_at, ends_at, capacity, auto_scheduled)
-             VALUES (?, ?, 'interview', ?, ?, ?, 1, 1)`,
+          const [sRes] = await conn.query(
+            `INSERT INTO slots (drive_id, resource_id, type, title, starts_at, ends_at, capacity, booked_count, auto_scheduled)
+             VALUES (?, ?, 'interview', ?, ?, ?, 1, 1, 1)`,
             [drive_id, venueId, `Interview — ${t.name}`, t.start, t.end]
+          );
+          const slotId = sRes.insertId;
+          await conn.query(
+            'INSERT INTO bookings (slot_id, student_id, status) VALUES (?, ?, ?)',
+            [slotId, t.student_id, 'confirmed']
           );
         }
         await conn.commit();

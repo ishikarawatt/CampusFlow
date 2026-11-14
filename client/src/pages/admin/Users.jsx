@@ -15,24 +15,54 @@ export default function Users() {
   const [rows, setRows] = useState([]);
   const [unavailable, setUnavailable] = useState(false);
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const { data } = await usersApi.list();
-        setRows(data ?? []);
-      } catch (err) {
-        if (err?.response?.status === 404) {
-          // Backend may not expose /users in Phase 1 — fail gracefully, no crash.
-          setUnavailable(true);
-        } else {
-          toast(errMsg(err, 'Could not load users.'), 'error');
-        }
-      } finally {
-        setLoading(false);
+  // Form state for creating staff accounts
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [role, setRole] = useState('recruiter');
+  const [creating, setCreating] = useState(false);
+
+  const fetchUsers = async () => {
+    try {
+      const { data } = await usersApi.list();
+      setRows(data ?? []);
+    } catch (err) {
+      if (err?.response?.status === 404) {
+        setUnavailable(true);
+      } else {
+        toast(errMsg(err, 'Could not load users.'), 'error');
       }
-    })();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    if (!name || !email || !password || !role) {
+      toast('Please fill in all fields.', 'error');
+      return;
+    }
+    setCreating(true);
+    try {
+      await usersApi.create({ name, email, password, role });
+      toast(`Created ${role} account for ${name}.`, 'success');
+      setName('');
+      setEmail('');
+      setPassword('');
+      setRole('recruiter');
+      await fetchUsers();
+    } catch (err) {
+      toast(errMsg(err, 'Failed to create user.'), 'error');
+    } finally {
+      setCreating(false);
+    }
+  };
 
   if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Loading users…</div>;
 
@@ -42,6 +72,50 @@ export default function Users() {
         <h2 className="font-semibold text-slate-900">Users</h2>
         <p className="text-xs text-slate-500 mt-0.5">Role-based access: admins see everything, recruiters manage their drives, students see their own data.</p>
       </div>
+
+      {/* Admin creation form for recruiter/admin accounts */}
+      <div className="p-5 border-b border-slate-100 bg-slate-50/50">
+        <h3 className="text-sm font-semibold text-slate-800 mb-3">Add Staff Account</h3>
+        <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <input
+            type="text"
+            placeholder="Full Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <input
+            type="email"
+            placeholder="Email address"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            <option value="recruiter">Recruiter</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button
+            type="submit"
+            disabled={creating}
+            className="bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl px-4 py-2 text-sm transition-colors"
+          >
+            {creating ? 'Creating…' : 'Add User'}
+          </button>
+        </form>
+      </div>
+
       {unavailable ? (
         <EmptyState
           title="User directory unavailable"

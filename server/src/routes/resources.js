@@ -6,8 +6,8 @@ const { checkAllocation } = require('../os/banker');
 
 const router = express.Router();
 
-// GET /resources
-router.get('/resources', async (req, res, next) => {
+// GET /resources — admin & recruiter
+router.get('/resources', authenticateToken, requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       'SELECT id, name, type, capacity, location, status FROM resources ORDER BY type, name'
@@ -39,8 +39,8 @@ router.post('/resources', authenticateToken, requireRole('admin'), async (req, r
   }
 });
 
-// GET /allocations
-router.get('/allocations', async (req, res, next) => {
+// GET /allocations — admin & recruiter
+router.get('/allocations', authenticateToken, requireRole('admin', 'recruiter'), async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       `SELECT a.id, a.purpose, a.seats_needed, a.starts_at, a.ends_at, a.slot_id,

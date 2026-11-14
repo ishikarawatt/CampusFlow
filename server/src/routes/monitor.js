@@ -9,6 +9,9 @@ const { recentActivity } = require('../dbms/audit');
 
 const router = express.Router();
 
+// All monitor endpoints are restricted to admin
+router.use(authenticateToken, requireRole('admin'));
+
 function parseLimit(value, def = 50, max = 500) {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) return def;
@@ -83,7 +86,7 @@ router.get('/activity', async (req, res, next) => {
 // POST /monitor/stress — admin fires `count` concurrent booking attempts.
 // Correctness guarantee: confirmed == min(count, seats available), because
 // every attempt serializes on the slot row lock (see os/critical-section.js).
-router.post('/stress', authenticateToken, requireRole('admin'), async (req, res, next) => {
+router.post('/stress', async (req, res, next) => {
   try {
     const { slot_id, count } = req.body || {};
     const n = Number(count);
@@ -132,10 +135,21 @@ router.post('/stress', authenticateToken, requireRole('admin'), async (req, res,
     );
 
     const ids = Array.from({ length: n }, (_, i) => firstId + i);
-    const results = await Promise.allSettled(
-      ids.map((id) => bookSeat(slot_id, id, 'stress-test'))
-    );
-    const confirmed = results.filter((r) => r.status === 'fulfilled').length;
+    let confirmed = 0;
+    try {
+      const results = await Promise.allSettled(
+        ids.map((id) => bookSeat(slot_id, id, 'stress-test'))
+      );
+      confirmed = results.filter((r) => r.status === 'fulfilled').length;
+    } finally {
+      // In all outcomes, remove exactly the users created for the stress test
+      try {
+        await pool.query('DELETE FROM students WHERE user_id IN (?)', [ids]);
+        await pool.query('DELETE FROM users WHERE id IN (?)', [ids]);
+      } catch (cleanErr) {
+        console.error('[stress] cleanup error:', cleanErr.message);
+      }
+    }
 
     res.json({ attempted: n, confirmed, rejected: n - confirmed, ms: Date.now() - t0 });
   } catch (err) {

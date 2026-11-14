@@ -247,6 +247,20 @@ async function main() {
     }
     console.log('Schema created (tables, triggers, procedure, view).');
 
+    // Record migrations already incorporated into schema.sql
+    await conn.query(
+      `CREATE TABLE IF NOT EXISTS schema_migrations (
+         version    VARCHAR(120) PRIMARY KEY,
+         applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+       )`
+    );
+    const { discoverMigrations } = require('./dbms/migrations');
+    const migrationFiles = discoverMigrations();
+    for (const file of migrationFiles) {
+      await conn.query('INSERT INTO schema_migrations (version) VALUES (?) ON DUPLICATE KEY UPDATE version=version', [file]);
+    }
+    console.log(`Recorded ${migrationFiles.length} migration(s) in schema_migrations.`);
+
     await seed(conn);
     console.log('Done.');
   } finally {

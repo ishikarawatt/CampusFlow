@@ -3,6 +3,11 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is missing.');
+  process.exit(1);
+}
+
 const app = express();
 
 app.use(cors());

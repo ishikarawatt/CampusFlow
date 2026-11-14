@@ -19,7 +19,13 @@ async function bookSeat(slotId, studentId, holderLabel) {
   const lockName = `slot:${slotId}`;
   const conn = await pool.getConnection();
   let lockLogged = false;
-  const releaseLock = () => logLockEvent(lockName, holderLabel, 'release', 0);
+  let lockReleased = false;
+  const releaseLock = () => {
+    if (lockLogged && !lockReleased) {
+      lockReleased = true;
+      logLockEvent(lockName, holderLabel, 'release', 0);
+    }
+  };
   try {
     await conn.beginTransaction();
 
@@ -30,13 +36,12 @@ async function bookSeat(slotId, studentId, holderLabel) {
       [slotId]
     );
     const waitMs = Date.now() - t0;
-    await logLockEvent(lockName, holderLabel, waitMs > 30 ? 'wait' : 'acquire', waitMs);
+    logLockEvent(lockName, holderLabel, waitMs > 30 ? 'wait' : 'acquire', waitMs);
     lockLogged = true;
 
     const slot = rows[0];
     if (!slot) {
       await conn.rollback();
-      await releaseLock();
       throw httpError(404, 'Slot not found.');
     }
 
@@ -46,13 +51,11 @@ async function bookSeat(slotId, studentId, holderLabel) {
     );
     if (existing.length && existing[0].status !== 'cancelled') {
       await conn.rollback();
-      await releaseLock();
       throw httpError(409, 'Already booked for this slot.');
     }
 
     if (slot.booked_count >= slot.capacity) {
       await conn.rollback();
-      await releaseLock();
       throw httpError(409, 'Slot is full.');
     }
 
@@ -75,7 +78,6 @@ async function bookSeat(slotId, studentId, holderLabel) {
         bookingId = res.insertId;
       } catch (err) {
         await conn.rollback();
-        await releaseLock();
         if (err.code === 'ER_DUP_ENTRY') throw httpError(409, 'Already booked for this slot.');
         throw err;
       }
@@ -83,9 +85,8 @@ async function bookSeat(slotId, studentId, holderLabel) {
     await conn.query('UPDATE slots SET booked_count = booked_count + 1 WHERE id = ?', [slotId]);
 
     await conn.commit();
-    await releaseLock();
 
-    const [bRows] = await pool.query(
+    const [bRows] = await conn.query(
       'SELECT id, slot_id, student_id, status, booked_at FROM bookings WHERE id = ?',
       [bookingId]
     );
@@ -98,7 +99,10 @@ async function bookSeat(slotId, studentId, holderLabel) {
     }
     throw err;
   } finally {
-    conn.release(); // always return the connection to the pool
+    conn.release(); // always return the connection to the pool FIRST
+    if (lockLogged && !lockReleased) {
+      releaseLock();
+    }
   }
 }
 

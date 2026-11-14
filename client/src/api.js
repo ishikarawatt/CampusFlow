@@ -118,7 +118,8 @@ export const companies = {
   create: (data) => api.post('/companies', data),
 };
 
-// --- Users (M1) — admin directory (backend may expose /users) ---
+// --- Users (M1) — admin directory ---
 export const users = {
   list: () => api.get('/users'),
+  create: (data) => api.post('/users', data),
 };

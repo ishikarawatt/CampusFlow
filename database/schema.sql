@@ -245,6 +245,12 @@ CREATE TRIGGER trg_bookings_audit_ad AFTER DELETE ON bookings FOR EACH ROW BEGIN
           JSON_OBJECT('slot_id', OLD.slot_id, 'student_id', OLD.student_id));
 END$$
 
+CREATE TRIGGER trg_applications_audit_ai AFTER INSERT ON applications FOR EACH ROW BEGIN
+  INSERT INTO audit_log (action, entity, entity_id, details)
+  VALUES ('INSERT', 'application', NEW.id,
+          JSON_OBJECT('drive_id', NEW.drive_id, 'student_id', NEW.student_id, 'status', NEW.status));
+END$$
+
 CREATE TRIGGER trg_applications_audit_au AFTER UPDATE ON applications FOR EACH ROW BEGIN
   INSERT INTO audit_log (action, entity, entity_id, details)
   VALUES ('UPDATE', 'application', NEW.id,
@@ -256,6 +262,19 @@ CREATE TRIGGER trg_allocations_audit_ai AFTER INSERT ON allocations FOR EACH ROW
   VALUES ('INSERT', 'allocation', NEW.id,
           JSON_OBJECT('resource_id', NEW.resource_id, 'purpose', NEW.purpose,
                       'seats_needed', NEW.seats_needed));
+END$$
+
+CREATE TRIGGER trg_allocations_audit_au AFTER UPDATE ON allocations FOR EACH ROW BEGIN
+  INSERT INTO audit_log (action, entity, entity_id, details)
+  VALUES ('UPDATE', 'allocation', NEW.id,
+          JSON_OBJECT('resource_id', NEW.resource_id, 'purpose', NEW.purpose,
+                      'seats_needed', NEW.seats_needed, 'starts_at', NEW.starts_at, 'ends_at', NEW.ends_at));
+END$$
+
+CREATE TRIGGER trg_allocations_audit_ad AFTER DELETE ON allocations FOR EACH ROW BEGIN
+  INSERT INTO audit_log (action, entity, entity_id, details)
+  VALUES ('DELETE', 'allocation', OLD.id,
+          JSON_OBJECT('resource_id', OLD.resource_id, 'purpose', OLD.purpose));
 END$$
 
 -- ============================================== STORED PROCEDURE: shortlist ==

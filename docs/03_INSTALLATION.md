@@ -1,175 +1,125 @@
-# Installation — Run CampusFlow on Your Machine
+# Installation & Setup Guide — CampusFlow OS
 
-Everything runs on `localhost`: the database, the API and the UI. No internet needed after
-setup. Takes about 10 minutes.
-
----
-
-## 1. What you need
-
-| Tool | Version | Check with |
-|---|---|---|
-| Node.js | 18+ | `node --version` |
-| MySQL | 8.0 | see below — Docker **or** a local install |
-| Git | any | `git --version` |
-
-**Database — pick one:**
-- **Option A (recommended): Docker.** Install [Docker Desktop](https://www.docker.com/products/docker-desktop/),
-  then the project starts its own MySQL for you. You don't need MySQL installed separately.
-- **Option B: local MySQL.** Install [MySQL 8 Community Server](https://dev.mysql.com/downloads/mysql/).
-  During setup, **note down the root password you choose** — you'll need it in step 3.
+Everything runs locally on `localhost`: the relational database, Express REST API, and Vite React client. No external cloud dependencies or internet access are required after installing packages.
 
 ---
 
-## 2. Get the code
+## 1. System Requirements
 
-```bash
-git clone https://github.com/trishadabral/CampusFlow.git
-cd CampusFlow
-```
-
-(No Git? Download the ZIP from the GitHub page and extract it instead.)
-
----
-
-## 3. Start the database
-
-**Option A — Docker:**
-```bash
-docker compose up -d
-```
-This starts MySQL 8 with root password `campusflow`. Wait ~15 seconds for it to finish starting.
-
-**Option B — local MySQL:** make sure the MySQL service is running.
-- Windows: open `services.msc`, find `MySQL80`, status should be *Running*
-  (or in PowerShell: `Get-Service *mysql*`)
+| Tool | Minimum Version | Verification Command | Notes |
+|---|---|---|---|
+| **Node.js** | v18.0.0+ (LTS recommended) | `node --version` | Ships with `npm` (`npm --version`) |
+| **MySQL** | 8.0+ | `mysql --version` | Standard local installation (or Docker optional) |
+| **Git** | 2.x+ | `git --version` | For branch management |
 
 ---
 
-## 4. Backend
+## 2. Windows Plain Installation (Recommended)
 
-```bash
-cd server
-cp .env.example .env
-```
+### Step 2.1: MySQL 8 Installation & PATH Configuration
+1. If not already installed, download [MySQL 8.0 Community Server](https://dev.mysql.com/downloads/mysql/).
+2. Run the MySQL installer with default port `3306` and InnoDB enabled. Note your chosen root password.
+3. Verify that the MySQL Windows service is active:
+   ```powershell
+   Get-Service *mysql*
+   ```
+   (Should display `Running`).
+4. **Add MySQL binary to Windows PATH** (optional but recommended for CLI access):
+   - Typical path: `C:\Program Files\MySQL\MySQL Server 8.0\bin`
+   - Test in a new PowerShell window:
+     ```powershell
+     & "C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p
+     ```
 
-Now **open the new `.env` file** and set your password on the `DB_PASSWORD=` line:
+*(Alternative: Docker is supported as an optional setup using `docker compose up -d`).*
 
-| Your setup | What to put |
-|---|---|
-| Docker (Option A) | `DB_PASSWORD=campusflow` |
-| Local MySQL (Option B) | `DB_PASSWORD=` + the root password you chose during MySQL setup |
+### Step 2.2: Backend Environment Configuration
+1. Navigate to the `server/` directory:
+   ```powershell
+   cd c:\dev\CampusFlow\server
+   ```
+2. Copy `.env.example` to create `.env`:
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+   *(Note: `server/.env` is gitignored to protect local credentials).*
+3. Open `server/.env` and configure:
+   ```ini
+   PORT=5000
+   DB_HOST=localhost
+   DB_PORT=3306
+   DB_USER=root
+   DB_PASSWORD=your_mysql_password
+   DB_NAME=campusflow
+   JWT_SECRET=your_32_character_long_random_secret_string
+   ```
+   > ⚠️ **Important**: `JWT_SECRET` is strictly required. The backend will refuse to start if `JWT_SECRET` is missing.
 
-> ⚠️ The app **only** reads the file named exactly `.env` inside the `server/` folder.
-> The `.env.example` file is just a template — editing it does nothing.
-
-Then:
-
-```bash
+### Step 2.3: Database Initialization & Seed
+Run the database reset script inside `server/`:
+```powershell
 npm install
-npm run db:reset     # creates the database, all tables, and demo data
-npm run dev          # API runs at http://localhost:5000
+npm run db:reset
 ```
+This performs a full idempotent rebuild:
+1. Recreates the `campusflow` database with UTF-8 character encoding.
+2. Applies `database/schema.sql` (14 tables, 8 audit triggers, stored procedure, view).
+3. Records all discovered migrations (`migrate_v2.sql`, `migrate_v3.sql`, `migrate_v4.sql`) in `schema_migrations`.
+4. Seeds 3 staff accounts, 12 student profiles, 2 companies, 3 drives, test questions, and resource inventory.
 
-You should see: `Recreating database campusflow ...` → `Schema created` → `Done.`
-
----
-
-## 5. Frontend
-
-Open a **second terminal**:
-
-```bash
-cd client
-npm install
-npm run dev          # UI runs at http://localhost:5173
-```
-
-Open **http://localhost:5173** in your browser. 🎉
-
----
-
-## 6. Log in (demo accounts, password: `password123`)
-
-| Role | Email | You'll see |
-|---|---|---|
-| Admin | `admin@campusflow.local` | Control Center, resources, reports |
-| Recruiter | `priya@techcorp.com` | Hiring dashboard, Add Drive wizard |
-| Student | `aarav@student.local` | My Applications, drives, tests |
-
-The login page also has one-click buttons for each role.
-
----
-
-## 7. Suggested first tour (5 minutes)
-
-1. **Recruiter** → *Add Drive* → walk the 4-step wizard → Publish
-2. **Student** → *Find Drives* → Apply in 1 click
-3. **Recruiter** → open the drive → **Schedule tests** → the system batches students into labs
-4. **Student** → *My Applications* → **Take the test now**
-5. **Recruiter** → **Publish results** → interviews are timetabled automatically
-6. **Admin** → *Control Center* → watch the whole operation; try the **System Monitor** stress test
-
----
-
-## 🆘 Troubleshooting
-
-**`Reset failed: Access denied for user 'root'@'localhost' (using password: NO)`**
-The `.env` file has no password. Open `server/.env` (not `.env.example`) and fill in
-`DB_PASSWORD=`. Then run `npm run db:reset` again.
-
-**`Reset failed: Access denied ... (using password: YES)`**
-A password *was* sent but MySQL rejected it — it's the wrong password. Check it works first:
-```
-"C:\Program Files\MySQL\MySQL Server 8.0\bin\mysql.exe" -u root -p
-```
-(type your password at the prompt; if you get a `mysql>` prompt, that password goes in `.env`).
-
-**`'mysql' is not recognized` (Windows)**
-The MySQL tools aren't on your PATH — that's fine, you don't need them. The Node app connects
-directly. Use the full path above if you want the MySQL prompt.
-
-**`connect ECONNREFUSED 127.0.0.1:3306`**
-MySQL isn't running. Docker: `docker compose up -d` (and wait 15s). Local: start the `MySQL80`
-service.
-
-**`Port 5000 is already in use`**
-Another program is on port 5000. Either stop it, or set `PORT=5001` in `server/.env`.
-
-**`Port 5173 is already in use`**
-Vite will offer the next free port automatically — use the URL it prints.
-
-**Password contains a `#`**
-Wrap it in quotes in `.env`: `DB_PASSWORD="my#password"` — otherwise everything after `#`
-is silently ignored.
-
-**Starting over**
-`npm run db:reset` wipes and rebuilds everything (schema + demo data). Safe to run any time.
-
-**Upgrading without wiping data**
-If you already have a database with real data (e.g. from an earlier version), don't reset —
-apply the pending schema upgrades instead:
-```bash
-cd server
+Verify migration status:
+```powershell
 npm run db:migrate
 ```
-This runs any `database/migrate_*.sql` files you haven't applied yet, in order, and records
-them so each runs exactly once.
+Expected output: `Database is already up to date — no pending migrations.`
+
+### Step 2.4: Start Backend API
+```powershell
+npm run dev
+```
+The API server listens on `http://localhost:5000/api`.
+
+### Step 2.5: Install & Start Frontend Client
+Open a second PowerShell terminal:
+```powershell
+cd c:\dev\CampusFlow\client
+npm install
+npm run dev
+```
+The Vite development server will start on `http://localhost:5173`. Open this URL in your web browser.
 
 ---
 
-## Project layout
+## 3. Seed Accounts & Portals (Password: `password123`)
 
-```
-CampusFlow/
-├── client/     React + Vite + Tailwind UI (student / recruiter / admin portals)
-├── server/     Express REST API
-│   └── src/
-│       ├── os/       OS concepts: critical-section, locks, cpu-scheduler,
-│       │             banker (Banker's algorithm), pipeline (job scheduler)
-│       ├── dbms/     DBMS concepts: db pool, transactions, eligibility rules
-│       └── routes/   HTTP layer (thin — logic lives in os/ or dbms/)
-├── database/   schema.sql (full schema) · migrate_v2.sql (upgrade script)
-├── docs/       01_TEAM_CONTRIBUTIONS.md · 02_PHASE2_PLAN.md · 03_INSTALLATION.md
-└── docker-compose.yml   MySQL 8 container for local development
-```
+| Role | Email | Portal Surface | Capabilities |
+|---|---|---|---|
+| **Admin** | `admin@campusflow.local` | Control Center (`/admin`) | Master timetable, resource allocations, live lock monitor, scheduling simulation, user management |
+| **Recruiter** | `priya@techcorp.com` | Recruiter Dashboard (`/recruiter`) | Create placement drives, configure aptitude tests, schedule batches, publish shortlists |
+| **Student** | `aarav@student.local` | Student Dashboard (`/student`) | Explore drives, 1-click apply, take timed aptitude tests, view auto-scheduled interviews |
+
+*(One-click demo login buttons are available directly on the login page).*
+
+---
+
+## 4. Key Architectural Notes for Evaluators
+
+1. **CPU Scheduling Algorithms**:
+   The interview scheduler implements **FCFS (First-Come, First-Served)** and **Non-preemptive Priority** (highest CGPA interviewed first). Round Robin was intentionally removed in this release because preemptive time-slicing is physically inapplicable to human interview panels.
+2. **Stored Procedure (`sp_generate_shortlist`)**:
+   `database/schema.sql` defines `sp_generate_shortlist(IN p_drive_id, OUT p_count)`. This is a direct set-based SQL procedure for criteria-based shortlisting. In the v2/v3 architecture, web drive workflows use score-based shortlisting (`publishResults` in `pipeline.js`). Evaluators can execute the procedure directly in MySQL:
+   ```sql
+   CALL sp_generate_shortlist(1, @count);
+   SELECT @count;
+   ```
+3. **Serialized Critical Section**:
+   All seat reservations serialize through `SELECT … FOR UPDATE` inside `server/src/os/critical-section.js`. Connection leaks and ghost locks are prevented via guaranteed `finally` block cleanup and telemetry flags.
+
+---
+
+## 5. Troubleshooting & FAQ
+
+- **`FATAL: JWT_SECRET environment variable is missing`**: Ensure `server/.env` contains a non-empty `JWT_SECRET=...` definition.
+- **`Access denied for user 'root'@'localhost'`**: Verify password in `server/.env` matches your MySQL root account.
+- **`Port 5000 is already in use`**: Terminate any lingering Node processes (`Stop-Process -Name node`) or change `PORT` in `server/.env`.
+- **`Duplicate column name / table exists` during `npm run db:migrate`**: Run `npm run db:reset` first. The reset script records all migration versions in `schema_migrations`.

@@ -10,7 +10,7 @@ function authenticateToken(req, res, next) {
   }
   let payload;
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET || 'change-me');
+    payload = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired token. Please log in again.' });
   }
@@ -45,7 +45,7 @@ function optionalAuth(req, res, next) {
   if (!token) return next();
   let payload;
   try {
-    payload = jwt.verify(token, process.env.JWT_SECRET || 'change-me');
+    payload = jwt.verify(token, process.env.JWT_SECRET);
   } catch (err) {
     return next(); // bad token on a public route: treat as anonymous
   }

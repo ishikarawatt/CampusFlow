@@ -6,10 +6,10 @@ const pool = require('../dbms/db');
 const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
-const VALID_ROLES = ['student', 'recruiter', 'admin'];
 
 function signToken(user) {
-  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET || 'change-me', {
+  if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is not configured.');
+  return jwt.sign({ id: user.id, role: user.role }, process.env.JWT_SECRET, {
     expiresIn: '8h',
   });
 }
@@ -18,18 +18,17 @@ function publicUser(row) {
   return { id: row.id, name: row.name, email: row.email, role: row.role };
 }
 
-// POST /auth/register
+// POST /auth/register — public registration creates students only
 router.post('/register', async (req, res, next) => {
   try {
-    const { name, email, password, role, roll_no, branch, cgpa, backlogs, graduation_year } =
+    const { name, email, password, roll_no, branch, cgpa, backlogs, graduation_year } =
       req.body || {};
-    if (!name || !email || !password || !role) {
-      return res.status(400).json({ error: 'Name, email, password and role are required.' });
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email and password are required.' });
     }
-    if (!VALID_ROLES.includes(role)) {
-      return res.status(400).json({ error: 'Role must be one of: student, recruiter, admin.' });
-    }
-    if (role === 'student' && (!roll_no || !branch || cgpa == null || !graduation_year)) {
+    // Public self-registration is strictly restricted to students. Any role in body is ignored.
+    const role = 'student';
+    if (!roll_no || !branch || cgpa == null || !graduation_year) {
       return res
         .status(400)
         .json({ error: 'Students must also provide roll_no, branch, cgpa and graduation_year.' });
@@ -49,12 +48,10 @@ router.post('/register', async (req, res, next) => {
         'INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)',
         [name, email, hash, role]
       );
-      if (role === 'student') {
-        await conn.query(
-          'INSERT INTO students (user_id, roll_no, branch, cgpa, backlogs, graduation_year) VALUES (?, ?, ?, ?, ?, ?)',
-          [uRes.insertId, roll_no, branch, cgpa, backlogs || 0, graduation_year]
-        );
-      }
+      await conn.query(
+        'INSERT INTO students (user_id, roll_no, branch, cgpa, backlogs, graduation_year) VALUES (?, ?, ?, ?, ?, ?)',
+        [uRes.insertId, roll_no, branch, cgpa, backlogs || 0, graduation_year]
+      );
       await conn.commit();
       const user = { id: uRes.insertId, name, email, role };
       res.status(201).json({ token: signToken(user), user });

@@ -11,13 +11,13 @@ import Badge from '../../components/Badge.jsx';
 import DataTable from '../../components/DataTable.jsx';
 
 const ACTION_PILL = {
-  acquired: 'success',
-  waiting: 'warning',
-  released: 'neutral',
+  acquire: 'success',
+  wait: 'warning',
+  release: 'neutral',
 };
 
 // Plain-language labels for lock events.
-const ACTION_LABEL = { acquired: 'Booking', waiting: 'In queue', released: 'Done' };
+const ACTION_LABEL = { acquire: 'Booking', wait: 'In queue', release: 'Done' };
 const holderName = (h) => (h === 'stress-test' ? 'Rush test' : h);
 const VERB = { INSERT: 'Created', UPDATE: 'Updated', DELETE: 'Removed' };
 
@@ -95,10 +95,10 @@ export default function KernelMonitor() {
   const waiting = [];
   const seen = new Set();
   for (const l of locks) {
-    if (l.action === 'waiting' && !seen.has(`w-${l.holder}-${l.lock_name}`)) {
+    if (l.action === 'wait' && !seen.has(`w-${l.holder}-${l.lock_name}`)) {
       seen.add(`w-${l.holder}-${l.lock_name}`);
       waiting.push(l);
-    } else if (l.action === 'acquired' && !seen.has(`r-${l.holder}-${l.lock_name}`)) {
+    } else if (l.action === 'acquire' && !seen.has(`r-${l.holder}-${l.lock_name}`)) {
       seen.add(`r-${l.holder}-${l.lock_name}`);
       running.push(l);
     }
@@ -187,7 +187,11 @@ export default function KernelMonitor() {
                   <span className="text-slate-400">{formatDate(a.created_at)}</span>{' '}
                   <span className="text-indigo-600 font-semibold">{VERB[a.action] ?? a.action}</span>{' '}
                   <span className="text-slate-700">{a.entity}{a.entity_id ? ` #${a.entity_id}` : ''}</span>
-                  {a.details && <span className="text-slate-400"> — {a.details}</span>}
+                  {a.details && (
+                    <span className="text-slate-400">
+                      {' '}— {typeof a.details === 'object' ? JSON.stringify(a.details) : String(a.details)}
+                    </span>
+                  )}
                 </div>
               ))
             )}
