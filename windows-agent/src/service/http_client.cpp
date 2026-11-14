@@ -164,7 +164,7 @@ HttpResponse HttpClient::SendHeartbeat(const std::string& baseUrl,
                                        const std::string& foregroundTitle,
                                        const std::string& foregroundProcess,
                                        SessionConfig& outSession) {
-    json payload;
+    json payload = json::object();
     if (!foregroundTitle.empty()) payload["foreground_title"] = foregroundTitle;
     if (!foregroundProcess.empty()) payload["foreground_process"] = foregroundProcess;
 
@@ -185,14 +185,20 @@ HttpResponse HttpClient::SendHeartbeat(const std::string& baseUrl,
                 }
             }
 
-            // Parse session
+            // Parse session – null‑safe extraction of fields
             if (resJson.contains("session") && !resJson["session"].is_null()) {
-                auto s = resJson["session"];
+                const json& s = resJson["session"];
+                // Helper for optional string fields (null => default)
+                auto getStr = [&s](const char* key, const std::string& def) -> std::string {
+                    if (s.contains(key) && s[key].is_string()) return s[key].get<std::string>();
+                    return def;
+                };
                 outSession.is_active = true;
-                outSession.session_id = s.value("session_id", 0);
-                outSession.student_name = s.value("student_name", "");
-                outSession.exam_window_keyword = s.value("exam_window_keyword", "CampusFlow");
-                outSession.ends_at = s.value("ends_at", "");
+                outSession.session_id = (s.contains("session_id") && s["session_id"].is_number_integer())
+                                            ? s["session_id"].get<int>() : 0;
+                outSession.student_name = getStr("student_name", "");
+                outSession.exam_window_keyword = getStr("exam_window_keyword", "CampusFlow");
+                outSession.ends_at = getStr("ends_at", "");
             } else {
                 outSession.is_active = false;
                 outSession.session_id = 0;

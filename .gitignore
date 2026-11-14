@@ -6,3 +6,7 @@ server/.env
 client/.env
 *.log
 .DS_Store
+
+# Windows agent build output
+windows-agent/build/
+windows-agent/dist/
