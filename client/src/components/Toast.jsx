@@ -1,26 +1,12 @@
-// Toast system — every error surfaces as a human sentence, never raw JSON.
-// Usage: const { toast } = useToast(); toast('Slot booked!', 'success')
-
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
+import { CheckCircle2, AlertCircle, Info, X } from 'lucide-react';
 
 const ToastContext = createContext(null);
 
 const ICONS = {
-  success: (
-    <svg className="w-5 h-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  error: (
-    <svg className="w-5 h-5 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
-  info: (
-    <svg className="w-5 h-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  ),
+  success: <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />,
+  error: <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />,
+  info: <Info className="w-5 h-5 text-[#26BFD0] shrink-0" />,
 };
 
 export function ToastProvider({ children }) {
@@ -30,20 +16,32 @@ export function ToastProvider({ children }) {
   const toast = useCallback((message, type = 'info') => {
     const id = ++idRef.current;
     setToasts((t) => [...t, { id, message, type }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    setTimeout(() => {
+      setToasts((t) => t.filter((x) => x.id !== id));
+    }, 4200);
   }, []);
+
+  const removeToast = (id) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  };
 
   return (
     <ToastContext.Provider value={{ toast }}>
       {children}
-      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2 max-w-sm">
+      <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2.5 max-w-sm pointer-events-none">
         {toasts.map((t) => (
           <div
             key={t.id}
-            className="flex items-start gap-3 bg-white rounded-xl shadow-lg border border-slate-200 px-4 py-3 text-sm text-slate-700"
+            className="pointer-events-auto flex items-start gap-3 bg-[var(--color-surface)] rounded-xl shadow-lg border border-[var(--color-border)] px-4 py-3 text-sm text-[var(--color-text-primary)] cf-rise"
           >
-            <span className="mt-0.5 shrink-0">{ICONS[t.type] ?? ICONS.info}</span>
-            <span>{t.message}</span>
+            <span className="mt-0.5">{ICONS[t.type] ?? ICONS.info}</span>
+            <span className="flex-1 text-sm font-medium leading-snug">{t.message}</span>
+            <button
+              onClick={() => removeToast(t.id)}
+              className="text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors p-0.5"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         ))}
       </div>

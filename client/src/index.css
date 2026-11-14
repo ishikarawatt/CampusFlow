@@ -2,6 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme variables – light (default) */
+:root {
+  --color-bg: #EAF4F6; /* iceWhite */
+  --color-surface: #FFFFFF;
+  --color-text-primary: #101D29; /* deepNavy */
+  --color-text-muted: #6B7280; /* gray-500 */
+  --color-border: #E5E7EB;
+  --color-accent: #26BFD0; /* electricCyan */
+  --color-success: #34D399;
+  --color-warning: #FBBF24;
+  --color-danger: #EF4444;
+  --color-info: #60A5FA;
+}
+
+/* Dark mode overrides – applied when .dark on <html> */
+.dark {
+  --color-bg: #101D29; /* deepNavy */
+  --color-surface: #1C3444; /* slateNavy */
+  --color-text-primary: #EAF4F6; /* iceWhite */
+  --color-text-muted: #A0A0A0;
+  --color-border: #2F3B45;
+  --color-accent: #26BFD0;
+}
+
+body {
+  @apply bg-[var(--color-bg)] text-[var(--color-text-primary)] antialiased;
+  font-family: var(--font-body);
+}
+
+/* Font faces – loaded via @fontsource in index.html (or import) */
+:root {
+  --font-brand: 'Fraunces', serif;
+  --font-heading: 'Archivo Black', sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Apply font families via utility classes */
+.font-brand { font-family: var(--font-brand); }
+.font-heading { font-family: var(--font-heading); }
+.font-body { font-family: var(--font-body); }
+.font-mono { font-family: var(--font-mono); }
+
+/* Base components adjustments – replace old hard‑coded colours */
+.cf-card {
+  @apply bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6;
+  /* subtle shadow */
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.08);
+}
+
+.cf-btn-primary {
+  @apply text-white;
+  background-color: var(--color-accent);
+  box-shadow: 0 4px 14px -4px rgba(38,191,208,0.5);
+}
+
+.cf-btn-primary:hover:not(:disabled) {
+  box-shadow: 0 6px 20px -4px rgba(38,191,208,0.65);
+  transform: translateY(-1px);
+}
+
+/* Input focus ring using accent */
+.cf-input:focus {
+  @apply ring-2 ring-[var(--color-accent)] border-[var(--color-accent)];
+}
+
+/* Scrollbars */
+.slim-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.slim-scroll::-webkit-scrollbar-thumb {
+  @apply bg-[var(--color-border)] rounded-full;
+}
+.slim-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Misc utilities */
+.text-primary { color: var(--color-text-primary); }
+.text-muted { color: var(--color-text-muted); }
+.bg-primary { background-color: var(--color-bg); }
+.bg-surface { background-color: var(--color-surface); }
+.border-primary { border-color: var(--color-border); }
+
+@tailwind components;
+@tailwind utilities;
+
 body {
   @apply bg-[#f3f5fa] text-slate-800 antialiased;
 }
