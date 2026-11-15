@@ -10,3 +10,6 @@ client/.env
 # Windows agent build output
 windows-agent/build/
 windows-agent/dist/
+
+# Uploaded resumes and server storage
+server/storage/
