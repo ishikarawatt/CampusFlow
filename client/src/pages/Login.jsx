@@ -1,16 +1,20 @@
-// M1 — Login: split screen. Left = brand + 3 value props. Right = form + demo buttons.
-// Demo accounts (seeded): admin@campusflow.local / priya@techcorp.com / aarav@student.local — password: password123
+// Login: Split layout.
+// Left = Deep Midnight brand panel (Playfair Display brand, line-art SVG, value propositions).
+// Right = Ivory/Surface form panel with real validation, demo buttons, and loading states.
 
 import React, { useState } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useToast } from '../components/Toast.jsx';
 import { errMsg } from '../api.js';
+import Button from '../components/Button.jsx';
+import { Input } from '../components/FormControls.jsx';
+import { Check, ShieldCheck, Cpu, ArrowRight } from 'lucide-react';
 
 const DEMOS = [
-  { role: 'Admin', email: 'admin@campusflow.local' },
-  { role: 'Recruiter', email: 'priya@techcorp.com' },
-  { role: 'Student', email: 'aarav@student.local' },
+  { role: 'Admin', email: 'admin@campusflow.local', label: 'Placement Officer' },
+  { role: 'Recruiter', email: 'priya@techcorp.com', label: 'TechCorp Recruiter' },
+  { role: 'Student', email: 'aarav@student.local', label: 'Student Candidate' },
 ];
 const DEMO_PASSWORD = 'password123';
 
@@ -23,20 +27,32 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
+  const [errors, setErrors] = useState({});
 
   if (ready && user) return <Navigate to={HOME[user.role] ?? '/student'} replace />;
+
+  const validate = () => {
+    const errs = {};
+    if (!email.trim()) errs.email = 'Email address is required.';
+    else if (!/\S+@\S+\.\S+/.test(email)) errs.email = 'Please enter a valid email.';
+    if (!password) errs.password = 'Password is required.';
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const submit = async (e, prefill) => {
     e?.preventDefault();
     const em = prefill?.email ?? email;
     const pw = prefill ? DEMO_PASSWORD : password;
-    if (!em || !pw) {
-      toast('Please enter your email and password.', 'error');
+
+    if (!prefill && !validate()) {
       return;
     }
+
     setBusy(true);
     try {
       const u = await login(em, pw);
+      toast(`Signed in as ${u.name}`, 'success');
       navigate(HOME[u.role] ?? '/student', { replace: true });
     } catch (err) {
       toast(errMsg(err, 'Login failed. Check your email and password.'), 'error');
@@ -46,94 +62,152 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Brand panel */}
-      <div className="hidden lg:flex w-[45%] bg-slate-900 text-white flex-col justify-between p-12">
-        <div className="flex items-center gap-3">
-          <svg className="w-10 h-10" viewBox="0 0 40 40" fill="none">
-            <path d="M20 3 L34 11 V29 L20 37 L6 29 V11 Z" fill="#4f46e5" />
-            <path d="M13 16.5h10m0 0l-3-3m3 3l-3 3" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M13 23.5h10m0 0l-3-3m3 3l-3 3" stroke="#a5b4fc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <div className="text-xl font-bold">CampusFlow OS</div>
+    <div className="min-h-screen flex bg-[var(--bg-app)] text-[var(--text-primary)]">
+      {/* Left Midnight Editorial Brand Panel */}
+      <div className="hidden lg:flex w-[48%] bg-[#0B1F1A] text-[#F7F3EA] flex-col justify-between p-12 border-r border-[#1C3A32] relative overflow-hidden">
+        {/* Subtle decorative hairline grid */}
+        <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#D9B36C 1px, transparent 1px)', backgroundSize: '24px 24px' }} />
+
+        {/* Brand header */}
+        <div className="flex items-center gap-3 relative z-10">
+          <div className="w-10 h-10 rounded-[6px] border border-[#D9B36C]/40 bg-[#112923] flex items-center justify-center shrink-0">
+            <span className="font-serif font-bold text-xl text-[#D9B36C]">C</span>
+          </div>
+          <div>
+            <div className="font-serif font-bold text-xl tracking-tight text-[#F7F3EA]">
+              CampusFlow
+            </div>
+            <div className="text-[10px] text-[#B9C7C1] font-mono tracking-widest uppercase">
+              Placement Operating System
+            </div>
+          </div>
         </div>
-        <div>
-          <h2 className="text-3xl font-bold leading-tight mb-8">
-            The operating system<br />for campus placements.
+
+        {/* Value proposition & Line-art illustration */}
+        <div className="relative z-10 max-w-lg my-auto py-10">
+          <div className="w-12 h-[2px] bg-[#D9B36C] mb-6" />
+          <h2 className="font-serif text-3xl sm:text-4xl font-bold leading-tight mb-4 text-[#F7F3EA]">
+            The architecture of campus placement, orchestrated.
           </h2>
-          <ul className="space-y-5">
+          <p className="text-sm text-[#B9C7C1] leading-relaxed mb-8 font-sans">
+            A high-concurrency placement engine pairing strict database isolation with real-time exam-PC supervision and algorithmic interview scheduling.
+          </p>
+
+          <div className="space-y-4">
             {[
-              ['One-click eligibility', 'Recruiters set the criteria once — the system builds the shortlist, with a reason for every student.'],
-              ['No double-booking, ever', 'Seats are assigned safely even when hundreds of students apply at once — no two students ever get the same seat.'],
-              ['Watch it work live', 'A live dashboard shows every booking, queue and change as it happens.'],
-            ].map(([t, d]) => (
-              <li key={t} className="flex gap-4">
-                <span className="mt-1 w-6 h-6 rounded-full bg-indigo-600/30 flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-indigo-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                  </svg>
-                </span>
-                <div>
-                  <div className="font-semibold">{t}</div>
-                  <div className="text-sm text-slate-400 mt-0.5">{d}</div>
+              {
+                title: 'Strict Concurrency Control',
+                desc: 'Row-level locking and ACID guarantees prevent slot and seat double-booking under load.',
+                icon: ShieldCheck,
+              },
+              {
+                title: 'Real-time PC Supervision',
+                desc: 'Native telemetry daemon monitoring process states, window events, and lab seating.',
+                icon: Cpu,
+              },
+            ].map((item, idx) => {
+              const Icon = item.icon;
+              return (
+                <div key={idx} className="flex items-start gap-3.5 p-3.5 rounded-[8px] bg-[#112923]/60 border border-[#1C3A32]">
+                  <div className="w-8 h-8 rounded-[4px] bg-[#0F7B5F]/20 text-[#D9B36C] border border-[#D9B36C]/30 flex items-center justify-center shrink-0 mt-0.5">
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-serif font-bold text-[#F7F3EA]">{item.title}</h3>
+                    <p className="text-xs text-[#B9C7C1] mt-0.5 leading-snug">{item.desc}</p>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
+              );
+            })}
+          </div>
         </div>
-        <div className="text-xs text-slate-500">PBL Project · OS + DBMS · Phase 1</div>
+
+        {/* Footer info */}
+        <div className="relative z-10 flex items-center justify-between text-[11px] font-mono text-[#7E968F] pt-6 border-t border-[#1C3A32]">
+          <span>CampusFlow Architecture</span>
+          <span>Kernel v2.4</span>
+        </div>
       </div>
 
-      {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      {/* Right Form Panel */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-md">
-          <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-          <p className="text-sm text-slate-500 mt-1 mb-8">Sign in to your placement portal.</p>
+          <div className="mb-8">
+            <h1 className="font-serif text-2xl sm:text-3xl font-bold text-[var(--text-primary)]">
+              Portal Sign In
+            </h1>
+            <div className="w-8 h-[2px] bg-[#D9B36C] mt-2 mb-2" />
+            <p className="text-xs text-[var(--text-muted)] font-sans">
+              Enter your credentials to access your placement dashboard.
+            </p>
+          </div>
 
           <form onSubmit={submit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-              <input
-                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@college.edu"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
+            <Input
+              label="Email Address"
+              type="email"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (errors.email) setErrors((prev) => ({ ...prev, email: null }));
+              }}
+              placeholder="user@campusflow.local"
+              error={errors.email}
+              autoComplete="email"
+            />
+
+            <Input
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors((prev) => ({ ...prev, password: null }));
+              }}
+              placeholder="••••••••••••"
+              error={errors.password}
+              autoComplete="current-password"
+            />
+
+            <div className="pt-2">
+              <Button
+                type="submit"
+                variant="primary"
+                loading={busy}
+                className="w-full py-2.5"
+                icon={<ArrowRight className="w-4 h-4" />}
+              >
+                Sign In to Account
+              </Button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
-              <input
-                type="password" value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
-            <button
-              type="submit" disabled={busy}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-semibold rounded-xl py-2.5 text-sm transition-colors"
-            >
-              {busy ? 'Signing in…' : 'Sign in'}
-            </button>
           </form>
 
-          <div className="mt-8">
-            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Try a demo account</div>
-            <div className="grid grid-cols-3 gap-2">
+          {/* Seed demo quick-fill buttons */}
+          <div className="mt-8 pt-6 border-t border-[var(--border-color)]">
+            <div className="text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-wider mb-3">
+              One-Click Demo Access
+            </div>
+            <div className="grid grid-cols-1 gap-2">
               {DEMOS.map((d) => (
                 <button
-                  key={d.role} disabled={busy}
+                  key={d.role}
+                  type="button"
                   onClick={(e) => submit(e, d)}
-                  className="border border-slate-200 bg-white hover:border-indigo-300 hover:bg-indigo-50 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors disabled:opacity-60"
+                  disabled={busy}
+                  className="flex items-center justify-between px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] hover:bg-[var(--bg-subtle)] hover:border-[var(--brand-accent)] text-left text-xs transition-colors"
                 >
-                  {d.role}
+                  <div>
+                    <span className="font-semibold text-[var(--text-primary)] font-sans mr-2">
+                      {d.role}
+                    </span>
+                    <span className="text-[var(--text-muted)] text-[11px]">({d.label})</span>
+                  </div>
+                  <span className="text-[10px] font-mono text-[var(--brand-primary)] dark:text-[var(--brand-accent)]">
+                    {d.email}
+                  </span>
                 </button>
               ))}
             </div>
-            <p className="text-xs text-slate-400 mt-3">
-              Demo logins: <span className="font-mono-tight">admin@campusflow.local</span>,{' '}
-              <span className="font-mono-tight">priya@techcorp.com</span>,{' '}
-              <span className="font-mono-tight">aarav@student.local</span> — all with password{' '}
-              <span className="font-mono-tight">password123</span>
-            </p>
           </div>
         </div>
       </div>
