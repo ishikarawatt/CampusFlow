@@ -53,3 +53,4 @@ To ensure zero broken bookmarks or links, `App.jsx` handles redirects:
 - `/student/drives/:id` → `/student/drives?panel=drive-:id`
 - `/admin/schedule` → `/admin/scheduling`
 - `/recruiter/applicants` → `/recruiter/drives`
+
