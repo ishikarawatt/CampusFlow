@@ -12,6 +12,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   LogOut,
   User as UserIcon,
   LayoutDashboard,
@@ -26,56 +27,86 @@ import {
   FileBarChart,
   Users as UsersIcon,
   Command,
+  Home,
+  Map,
+  ClipboardList,
+  UserCircle,
+  Building2,
+  Inbox,
+  Shield,
+  Cpu,
 } from 'lucide-react';
+
+/* ------------------------------------------------------------------ */
+/*  NEW Information Architecture — max 5-7 top-level items per portal  */
+/* ------------------------------------------------------------------ */
 
 const NAV_GROUPS = {
   student: [
     {
-      group: 'Overview',
-      items: [{ to: '/student', label: 'Dashboard', end: true, icon: LayoutDashboard }],
-    },
-    {
-      group: 'Placement',
+      group: null,
       items: [
-        { to: '/student/drives', label: 'Find Drives', icon: Search },
-        { to: '/student/bookings', label: 'My Schedule', icon: Calendar },
+        { to: '/student', label: 'Home', end: true, icon: Home },
+        { to: '/student/drives', label: 'Drives', icon: Search },
+        { to: '/student/journey', label: 'My Journey', icon: Map },
+        { to: '/student/profile', label: 'Profile', icon: UserCircle },
       ],
     },
   ],
   recruiter: [
     {
-      group: 'Overview',
-      items: [{ to: '/recruiter', label: 'Dashboard', end: true, icon: LayoutDashboard }],
-    },
-    {
-      group: 'Recruitment Drives',
+      group: null,
       items: [
-        { to: '/recruiter/drives', label: 'My Drives', icon: Briefcase },
+        { to: '/recruiter', label: 'Overview', end: true, icon: LayoutDashboard },
+        { to: '/recruiter/drives', label: 'Drives', icon: Briefcase },
         { to: '/recruiter/drives/new', label: 'Add Drive', highlight: true, icon: PlusCircle },
+        { to: '/recruiter/company', label: 'Company', icon: Building2 },
+        { to: '/recruiter/inbox', label: 'Inbox', icon: Inbox },
       ],
     },
   ],
   admin: [
     {
-      group: 'Control',
+      group: 'Command Center',
+      collapsible: false,
       items: [
-        { to: '/admin', label: 'Control Center', end: true, icon: LayoutDashboard },
-        { to: '/admin/monitoring', label: 'Exam Monitoring', icon: MonitorCheck },
-        { to: '/admin/exam-pcs', label: 'Exam PCs', icon: Server },
+        { to: '/admin', label: 'Command Center', end: true, icon: Shield },
       ],
     },
     {
-      group: 'Operations',
+      group: 'Exams & Labs',
+      collapsible: true,
+      items: [
+        { to: '/admin/monitoring', label: 'Exam Monitoring', icon: MonitorCheck },
+        { to: '/admin/exam-pcs', label: 'Exam PCs', icon: Cpu },
+      ],
+    },
+    {
+      group: 'Resources',
+      collapsible: true,
       items: [
         { to: '/admin/monitor', label: 'Live Monitor', icon: Activity },
-        { to: '/admin/scheduling', label: 'Interview Scheduler', icon: Calendar },
         { to: '/admin/resources', label: 'Resources', icon: Boxes },
       ],
     },
     {
-      group: 'Analytics & Management',
+      group: 'OS Lab',
+      collapsible: true,
+      items: [
+        { to: '/admin/scheduling', label: 'Scheduling Lab', icon: Calendar },
+      ],
+    },
+    {
+      group: 'Reports',
+      collapsible: true,
       items: [
         { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
+      ],
+    },
+    {
+      group: 'People',
+      collapsible: true,
+      items: [
         { to: '/admin/users', label: 'Users', icon: UsersIcon },
       ],
     },
@@ -83,17 +114,20 @@ const NAV_GROUPS = {
 };
 
 const TITLES = {
-  '/student': 'Dashboard',
-  '/student/drives': 'Find Drives',
-  '/student/bookings': 'My Schedule',
-  '/recruiter': 'Dashboard',
-  '/recruiter/drives': 'My Drives',
+  '/student': 'Home',
+  '/student/drives': 'Drives',
+  '/student/journey': 'My Journey',
+  '/student/profile': 'Profile',
+  '/recruiter': 'Overview',
+  '/recruiter/drives': 'Drives',
   '/recruiter/drives/new': 'Add Drive',
-  '/admin': 'Control Center',
+  '/recruiter/company': 'Company',
+  '/recruiter/inbox': 'Inbox',
+  '/admin': 'Command Center',
   '/admin/monitoring': 'Exam Monitoring',
   '/admin/exam-pcs': 'Exam PCs',
   '/admin/monitor': 'Live Monitor',
-  '/admin/scheduling': 'Interview Scheduler',
+  '/admin/scheduling': 'Scheduling Lab',
   '/admin/resources': 'Resources',
   '/admin/reports': 'Reports',
   '/admin/users': 'Users',
@@ -109,6 +143,7 @@ export default function Layout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState({});
 
   const role = user?.role ?? 'student';
   const groups = NAV_GROUPS[role] ?? NAV_GROUPS.student;
@@ -119,6 +154,19 @@ export default function Layout() {
       .filter(([p]) => location.pathname.startsWith(p))
       .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ??
     'CampusFlow';
+
+  // Auto-expand groups containing the active route
+  useEffect(() => {
+    if (role === 'admin') {
+      const expanded = {};
+      groups.forEach((grp) => {
+        if (grp.items.some((it) => location.pathname === it.to || location.pathname.startsWith(it.to + '/'))) {
+          expanded[grp.group] = true;
+        }
+      });
+      setExpandedGroups((prev) => ({ ...prev, ...expanded }));
+    }
+  }, [location.pathname, role]);
 
   // Keyboard shortcut listener for Ctrl+K or Cmd+K
   useEffect(() => {
@@ -135,6 +183,10 @@ export default function Layout() {
   const onLogout = () => {
     logout();
     navigate('/login');
+  };
+
+  const toggleGroup = (groupName) => {
+    setExpandedGroups((prev) => ({ ...prev, [groupName]: !prev[groupName] }));
   };
 
   return (
@@ -179,48 +231,63 @@ export default function Layout() {
         </div>
 
         {/* Navigation Groups */}
-        <nav className="flex-1 px-3 py-5 space-y-6 overflow-y-auto slim-scroll">
-          {groups.map((grp, gIdx) => (
-            <div key={gIdx} className="space-y-1">
-              {!collapsed && (
-                <div className="px-3 pb-1.5 text-[10px] font-mono uppercase tracking-widest text-[#7E968F]">
-                  {grp.group}
-                </div>
-              )}
-              {grp.items.map((it) => {
-                const Icon = it.icon;
-                return (
-                  <NavLink
-                    key={it.to}
-                    to={it.to}
-                    end={it.end}
-                    onClick={() => setMobileOpen(false)}
-                    className={({ isActive }) =>
-                      `relative flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-sm font-medium transition-colors ${
-                        it.highlight
-                          ? 'bg-[#D9B36C] text-[#0B1F1A] font-semibold hover:bg-[#E6C98A]'
-                          : isActive
-                          ? 'bg-[#112923] text-[#F7F3EA] font-semibold'
-                          : 'text-[#B9C7C1] hover:bg-[#112923]/60 hover:text-[#F7F3EA]'
-                      } ${collapsed ? 'justify-center px-0' : ''}`
-                    }
-                    title={collapsed ? it.label : undefined}
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {/* Signature gold left-edge indicator on active nav item */}
-                        {isActive && !it.highlight && (
-                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#D9B36C] rounded-r" />
-                        )}
-                        <Icon className={`w-4 h-4 shrink-0 ${it.highlight ? 'text-[#0B1F1A]' : isActive ? 'text-[#D9B36C]' : ''}`} />
-                        {!collapsed && <span className="truncate">{it.label}</span>}
-                      </>
-                    )}
-                  </NavLink>
-                );
-              })}
-            </div>
-          ))}
+        <nav className="flex-1 px-3 py-5 space-y-5 overflow-y-auto slim-scroll">
+          {groups.map((grp, gIdx) => {
+            const isCollapsible = grp.collapsible;
+            const isExpanded = !isCollapsible || expandedGroups[grp.group];
+
+            return (
+              <div key={gIdx} className="space-y-1">
+                {grp.group && !collapsed && (
+                  isCollapsible ? (
+                    <button
+                      onClick={() => toggleGroup(grp.group)}
+                      className="w-full flex items-center justify-between px-3 pb-1.5 text-[10px] font-mono uppercase tracking-widest text-[#7E968F] hover:text-[#B9C7C1] transition-colors"
+                    >
+                      <span>{grp.group}</span>
+                      <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? '' : '-rotate-90'}`} />
+                    </button>
+                  ) : (
+                    <div className="px-3 pb-1.5 text-[10px] font-mono uppercase tracking-widest text-[#7E968F]">
+                      {grp.group}
+                    </div>
+                  )
+                )}
+                {isExpanded && grp.items.map((it) => {
+                  const Icon = it.icon;
+                  return (
+                    <NavLink
+                      key={it.to}
+                      to={it.to}
+                      end={it.end}
+                      onClick={() => setMobileOpen(false)}
+                      className={({ isActive }) =>
+                        `relative flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-sm font-medium transition-colors ${
+                          it.highlight
+                            ? 'bg-[#D9B36C] text-[#0B1F1A] font-semibold hover:bg-[#E6C98A]'
+                            : isActive
+                            ? 'bg-[#112923] text-[#F7F3EA] font-semibold'
+                            : 'text-[#B9C7C1] hover:bg-[#112923]/60 hover:text-[#F7F3EA]'
+                        } ${collapsed ? 'justify-center px-0' : ''}`
+                      }
+                      title={collapsed ? it.label : undefined}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          {/* Signature gold left-edge indicator on active nav item */}
+                          {isActive && !it.highlight && (
+                            <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#D9B36C] rounded-r" />
+                          )}
+                          <Icon className={`w-4 h-4 shrink-0 ${it.highlight ? 'text-[#0B1F1A]' : isActive ? 'text-[#D9B36C]' : ''}`} />
+                          {!collapsed && <span className="truncate">{it.label}</span>}
+                        </>
+                      )}
+                    </NavLink>
+                  );
+                })}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Sidebar Footer with Collapse Toggle */}
