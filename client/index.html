@@ -3,25 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CampusFlow OS</title>
+    <title>CampusFlow — Campus Placement Platform</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <!-- Fraunces (brand, titles) -->
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&display=swap" rel="stylesheet" />
-    <!-- Archivo Black (headings, KPI) -->
-    <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&display=swap" rel="stylesheet" />
-    <!-- DM Sans (body, forms, navigation) -->
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <!-- JetBrains Mono (monospace technical) -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <!-- Inline script to set theme before first paint -->
+    <!-- Playfair Display (Serif: Headings, Page Titles, Brand, Big Stat Numbers) -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet" />
+    <!-- Inter (Sans: Body, Forms, Navigation, Tables) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- JetBrains Mono (Monospace: IDs, Timestamps, Codes, Event Types) -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <!-- Inline anti-flash script for per-user and device theme preferences -->
     <script>
       (function(){
         try {
-          const stored = localStorage.getItem('theme');
-          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-          const theme = stored || (prefersDark ? 'dark' : 'light');
-          if(theme === 'dark') document.documentElement.classList.add('dark');
+          var userRaw = localStorage.getItem('campusflow_user');
+          var user = userRaw ? JSON.parse(userRaw) : null;
+          var key = user && user.id ? ('campusflow_theme_' + user.id) : 'campusflow_theme_device';
+          var stored = localStorage.getItem(key) || localStorage.getItem('campusflow_theme_device') || localStorage.getItem('theme');
+          var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var theme = stored || (prefersDark ? 'dark' : 'light');
+          if (theme === 'dark') {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
         } catch(e){}
       })();
     </script>
