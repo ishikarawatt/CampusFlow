@@ -202,7 +202,23 @@ CREATE TABLE test_questions (
   marks         INT NOT NULL DEFAULT 1,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE CASCADE,
-  INDEX idx_tq_drive (drive_id)
+  INDEX idx_tq_drive (drive_id);
+
+-- ------------------------------------------------------- drive_tests --
+-- Admin approval data for each drive's test
+CREATE TABLE drive_tests (
+  drive_id INT PRIMARY KEY,
+  test_status ENUM('draft','pending_approval','approved','rejected') NOT NULL DEFAULT 'approved',
+  approval_note VARCHAR(500) NULL,
+  reviewed_by INT NULL,
+  reviewed_at DATETIME NULL,
+  duration_minutes INT NOT NULL DEFAULT 60,
+  FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE CASCADE
+);
+
+-- Populate drive_tests for existing drives (seed will also do this)
+INSERT INTO drive_tests (drive_id)
+  SELECT id FROM drives;
 );
 
 -- --------------------------------------------------------- test_results --
