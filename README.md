@@ -182,6 +182,4 @@ CampusFlow/
 - **[Database Management Manual](docs/DBMS_MANUAL.md)**: Deep dive into the 8 DBMS modules, ACID analysis, and triggers.
 - **[ER Diagram & Normalization](docs/ER_DIAGRAM.md)**: Full Mermaid ER model, normal form evaluations, and index catalogs.
 - **[System Architecture](docs/ARCHITECTURE.md)**: Flowcharts, sequence diagrams, and 14 code-backed design decisions.
-- **[Viva Voce Guide](docs/VIVA_GUIDE.md)**: 30-second pitches, 10 questions per member, hard defenses, and live tasks.
-- **[Master Demo Script](docs/DEMO_SCRIPT.md)**: 15–20 minute choreographed presentation with 4 "Wow Moments".
-- **[Known Issues & Disclosures](docs/KNOWN_ISSUES.md)**: Honest engineering disclosures on unbuilt and out-of-scope items.
+
