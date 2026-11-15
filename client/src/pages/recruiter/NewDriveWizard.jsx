@@ -3,23 +3,24 @@
 //   2. Test questions (the aptitude test students will take)
 //   3. Interview setup (panels, cutoff, shortlist cap)
 //   4. Review & publish
-// The system takes it from there: it schedules test sessions, grades,
-// shortlists and timetables interviews automatically.
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { drives as drivesApi, companies as companiesApi, errMsg } from '../../api.js';
 import { useToast } from '../../components/Toast.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import Stepper from '../../components/Stepper.jsx';
 import Badge from '../../components/Badge.jsx';
+import Button from '../../components/Button.jsx';
+import { PlusCircle, Trash2, CheckCircle2 } from 'lucide-react';
 
 const BRANCHES = ['CSE', 'IT', 'ECE', 'ME', 'CE', 'EE'];
 
 const STEPS = [
-  { key: 'details', label: 'Drive details' },
-  { key: 'questions', label: 'Test questions' },
-  { key: 'interview', label: 'Interview setup' },
-  { key: 'review', label: 'Review & publish' },
+  { key: 'details', label: 'Drive Details' },
+  { key: 'questions', label: 'Test Questions' },
+  { key: 'interview', label: 'Interview Setup' },
+  { key: 'review', label: 'Review & Publish' },
 ];
 
 function emptyQuestion() {
@@ -36,26 +37,38 @@ export default function NewDriveWizard() {
   const [newCompany, setNewCompany] = useState({ name: '', website: '', sector: '' });
 
   const [form, setForm] = useState({
-    company_id: '', title: '', description: '',
-    min_cgpa: '7.0', allowed_branches: ['CSE', 'IT'], max_backlogs: '0',
-    graduation_year: '2027', application_deadline: '',
-    test_date: '', interview_date: '',
+    company_id: '',
+    title: '',
+    description: '',
+    min_cgpa: '7.0',
+    allowed_branches: ['CSE', 'IT'],
+    max_backlogs: '0',
+    graduation_year: '2027',
+    application_deadline: '',
+    test_date: '',
+    interview_date: '',
   });
+
   const [questions, setQuestions] = useState([emptyQuestion()]);
   const [interview, setInterview] = useState({
-    num_interviewers: 2, min_test_score: 50, max_shortlist: 20,
-    test_duration_min: 60, interview_duration_min: 20,
+    num_interviewers: 2,
+    min_test_score: 50,
+    max_shortlist: 20,
+    test_duration_min: 60,
+    interview_duration_min: 20,
   });
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
-    companiesApi.list().then(({ data }) => {
-      setCompanies(data ?? []);
-      if ((data ?? []).length && !form.company_id) {
-        setForm((f) => ({ ...f, company_id: String(data[0].id) }));
-      }
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    companiesApi
+      .list()
+      .then(({ data }) => {
+        setCompanies(data ?? []);
+        if ((data ?? []).length && !form.company_id) {
+          setForm((f) => ({ ...f, company_id: String(data[0].id) }));
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -71,7 +84,10 @@ export default function NewDriveWizard() {
   };
 
   const addCompany = async () => {
-    if (!newCompany.name.trim()) { toast('Company name is required.', 'error'); return; }
+    if (!newCompany.name.trim()) {
+      toast('Company name is required.', 'error');
+      return;
+    }
     try {
       const { data } = await companiesApi.create(newCompany);
       const c = data.company ?? data;
@@ -79,36 +95,39 @@ export default function NewDriveWizard() {
       setForm((f) => ({ ...f, company_id: String(c.id) }));
       setShowNewCompany(false);
       setNewCompany({ name: '', website: '', sector: '' });
-      toast('Company added.', 'success');
+      toast('Company added successfully.', 'success');
     } catch (err) {
       toast(errMsg(err, 'Could not add the company.'), 'error');
     }
   };
 
-  // --- question builder ---
-  const setQ = (i, patch) => setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
-  const setOpt = (i, oi, v) => setQuestions((qs) => qs.map((q, j) => {
-    if (j !== i) return q;
-    const options = q.options.map((o, k) => (k === oi ? v : o));
-    return { ...q, options };
-  }));
+  const setQ = (i, patch) =>
+    setQuestions((qs) => qs.map((q, j) => (j === i ? { ...q, ...patch } : q)));
+  const setOpt = (i, oi, v) =>
+    setQuestions((qs) =>
+      qs.map((q, j) => {
+        if (j !== i) return q;
+        const options = q.options.map((o, k) => (k === oi ? v : o));
+        return { ...q, options };
+      })
+    );
 
   const validateStep = () => {
     if (step === 0) {
-      if (!form.company_id) return 'Pick a company.';
-      if (!form.title.trim()) return 'Give the drive a title.';
+      if (!form.company_id) return 'Pick or add a recruiting company.';
+      if (!form.title.trim()) return 'Give the placement drive a title.';
       if (!form.allowed_branches.length) return 'Select at least one eligible branch.';
       if (!form.application_deadline) return 'Set an application deadline.';
-      if (!form.test_date) return 'Pick a test date — the system schedules sessions on that day.';
+      if (!form.test_date) return 'Pick a test date for automated scheduling.';
       return null;
     }
     if (step === 1) {
-      if (!questions.length) return 'Add at least one question.';
+      if (!questions.length) return 'Add at least one test question.';
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];
         if (!q.text.trim()) return `Question ${i + 1}: write the question text.`;
         if (q.options.some((o) => !o.trim())) return `Question ${i + 1}: fill in all four options.`;
-        if (q.correct_index == null) return `Question ${i + 1}: mark the correct option.`;
+        if (q.correct_index == null) return `Question ${i + 1}: select the correct option radio.`;
       }
       return null;
     }
@@ -117,11 +136,17 @@ export default function NewDriveWizard() {
 
   const next = () => {
     const problem = validateStep();
-    if (problem) { toast(problem, 'error'); return; }
+    if (problem) {
+      toast(problem, 'error');
+      return;
+    }
     setStep((s) => Math.min(s + 1, 3));
     window.scrollTo(0, 0);
   };
-  const back = () => { setStep((s) => Math.max(s - 1, 0)); window.scrollTo(0, 0); };
+  const back = () => {
+    setStep((s) => Math.max(s - 1, 0));
+    window.scrollTo(0, 0);
+  };
 
   const loadPreview = async () => {
     try {
@@ -132,10 +157,12 @@ export default function NewDriveWizard() {
         graduation_year: Number(form.graduation_year),
       });
       setPreview(data);
-    } catch (_) { /* preview is a nice-to-have */ }
+    } catch (_) {}
   };
 
-  useEffect(() => { if (step === 3) loadPreview(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [step]);
+  useEffect(() => {
+    if (step === 3) loadPreview();
+  }, [step]);
 
   const publish = async () => {
     setPublishing(true);
@@ -158,13 +185,16 @@ export default function NewDriveWizard() {
         max_shortlist: Number(interview.max_shortlist),
       });
       const driveId = data.drive.id;
-      await drivesApi.saveQuestions(driveId, questions.map((q) => ({
-        text: q.text.trim(),
-        options: q.options.map((o) => o.trim()),
-        correct_index: q.correct_index,
-        marks: Number(q.marks) || 1,
-      })));
-      toast('Drive published. The system will handle scheduling from here.', 'success');
+      await drivesApi.saveQuestions(
+        driveId,
+        questions.map((q) => ({
+          text: q.text.trim(),
+          options: q.options.map((o) => o.trim()),
+          correct_index: q.correct_index,
+          marks: Number(q.marks) || 1,
+        }))
+      );
+      toast('Placement drive published successfully.', 'success');
       navigate(`/recruiter/drives/${driveId}`);
     } catch (err) {
       toast(errMsg(err, 'Could not publish the drive.'), 'error');
@@ -180,221 +210,460 @@ export default function NewDriveWizard() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-6">
-      <div className="cf-card cf-rise">
+      <PageHeader
+        title="Add Recruitment Drive"
+        subtitle="Complete the guided setup to define eligibility, question paper, and interview slots."
+        breadcrumbs={[
+          { label: 'Recruiter', to: '/recruiter' },
+          { label: 'Drives', to: '/recruiter/drives' },
+          { label: 'Add Drive' },
+        ]}
+      />
+
+      {/* Stepper Header */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-subtle">
         <Stepper steps={stepperSteps} />
       </div>
 
-      {/* STEP 1 — details */}
+      {/* STEP 1: Details */}
       {step === 0 && (
-        <div className="cf-card cf-rise space-y-5">
-          <div>
-            <h2 className="cf-section-title">Drive details</h2>
-            <p className="cf-section-sub">The basics. Eligibility decides who can apply — everyone else never sees this drive.</p>
+        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+          <div className="border-b border-[var(--border-color)] pb-3">
+            <h2 className="text-lg font-serif font-bold text-[var(--text-primary)]">Drive Specifications</h2>
+            <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+              Set role title, hiring company, and academic eligibility requirements.
+            </p>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="cf-label">Company</label>
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1.5">
+                Recruiting Company
+              </label>
               <div className="flex gap-2">
-                <select value={form.company_id} onChange={(e) => set('company_id', e.target.value)} className="cf-input">
-                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <select
+                  value={form.company_id}
+                  onChange={(e) => set('company_id', e.target.value)}
+                  className="flex-1 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-accent)]"
+                >
+                  {companies.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
                 </select>
-                <button type="button" onClick={() => setShowNewCompany((v) => !v)} className="cf-btn-secondary whitespace-nowrap">+ New</button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowNewCompany((v) => !v)}
+                >
+                  + New
+                </Button>
               </div>
+
               {showNewCompany && (
-                <div className="mt-3 p-4 bg-slate-50 rounded-xl space-y-3">
-                  <input value={newCompany.name} onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })} placeholder="Company name" className="cf-input" />
-                  <div className="grid grid-cols-2 gap-3">
-                    <input value={newCompany.website} onChange={(e) => setNewCompany({ ...newCompany, website: e.target.value })} placeholder="Website" className="cf-input" />
-                    <input value={newCompany.sector} onChange={(e) => setNewCompany({ ...newCompany, sector: e.target.value })} placeholder="Sector" className="cf-input" />
+                <div className="mt-3 p-4 bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-[6px] space-y-3">
+                  <input
+                    value={newCompany.name}
+                    onChange={(e) => setNewCompany({ ...newCompany, name: e.target.value })}
+                    placeholder="Company name"
+                    className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      value={newCompany.website}
+                      onChange={(e) => setNewCompany({ ...newCompany, website: e.target.value })}
+                      placeholder="Website URL"
+                      className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+                    />
+                    <input
+                      value={newCompany.sector}
+                      onChange={(e) => setNewCompany({ ...newCompany, sector: e.target.value })}
+                      placeholder="Industry sector"
+                      className="bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+                    />
                   </div>
-                  <button type="button" onClick={addCompany} className="cf-btn-primary !px-4 !py-2">Add company</button>
+                  <Button variant="primary" size="sm" onClick={addCompany}>
+                    Save Company
+                  </Button>
                 </div>
               )}
             </div>
+
             <div>
-              <label className="cf-label">Job title</label>
-              <input value={form.title} onChange={(e) => set('title', e.target.value)} placeholder="e.g. SDE Role 2027" className="cf-input" />
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1.5">
+                Drive / Role Title
+              </label>
+              <input
+                value={form.title}
+                onChange={(e) => set('title', e.target.value)}
+                placeholder="e.g. Software Engineer 2027"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-accent)]"
+              />
             </div>
           </div>
+
           <div>
-            <label className="cf-label">Description</label>
-            <textarea value={form.description} onChange={(e) => set('description', e.target.value)} rows={3} placeholder="Role, skills, CTC, location…" className="cf-input" />
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1.5">
+              Role Description & CTC
+            </label>
+            <textarea
+              value={form.description}
+              onChange={(e) => set('description', e.target.value)}
+              rows={3}
+              placeholder="Responsibilities, required technical competencies, package details..."
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-accent)]"
+            />
           </div>
+
           <div>
-            <label className="cf-label">Eligible branches</label>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1.5">
+              Eligible Branches
+            </label>
             <div className="flex flex-wrap gap-2">
-              {BRANCHES.map((b) => (
-                <button
-                  key={b} type="button" onClick={() => toggleBranch(b)}
-                  className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${form.allowed_branches.includes(b) ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-200' : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'}`}
-                >
-                  {b}
-                </button>
-              ))}
+              {BRANCHES.map((b) => {
+                const isSelected = form.allowed_branches.includes(b);
+                return (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => toggleBranch(b)}
+                    className={`px-3 py-1.5 rounded-[4px] text-xs font-mono font-semibold border transition-colors ${
+                      isSelected
+                        ? 'border-[#D9B36C] bg-[#D9B36C] text-[#0B1F1A]'
+                        : 'border-[var(--border-color)] bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                    }`}
+                  >
+                    {b}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="cf-label">Min CGPA</label>
-              <input type="number" step="0.1" min="0" max="10" value={form.min_cgpa} onChange={(e) => set('min_cgpa', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Min CGPA
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="10"
+                value={form.min_cgpa}
+                onChange={(e) => set('min_cgpa', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
             <div>
-              <label className="cf-label">Max backlogs</label>
-              <input type="number" min="0" value={form.max_backlogs} onChange={(e) => set('max_backlogs', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Max Backlogs
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={form.max_backlogs}
+                onChange={(e) => set('max_backlogs', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
             <div>
-              <label className="cf-label">Graduation year</label>
-              <input type="number" value={form.graduation_year} onChange={(e) => set('graduation_year', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Graduation Year
+              </label>
+              <input
+                type="number"
+                value={form.graduation_year}
+                onChange={(e) => set('graduation_year', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
             <div>
-              <label className="cf-label">Apply by</label>
-              <input type="datetime-local" value={form.application_deadline} onChange={(e) => set('application_deadline', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Apply Deadline
+              </label>
+              <input
+                type="datetime-local"
+                value={form.application_deadline}
+                onChange={(e) => set('application_deadline', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="cf-label">Test date</label>
-              <input type="date" value={form.test_date} onChange={(e) => set('test_date', e.target.value)} className="cf-input" />
-              <p className="cf-hint">The system auto-creates lab sessions on this day.</p>
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Test Date
+              </label>
+              <input
+                type="date"
+                value={form.test_date}
+                onChange={(e) => set('test_date', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
             <div>
-              <label className="cf-label">Interview date <span className="font-normal text-slate-400">(optional)</span></label>
-              <input type="date" value={form.interview_date} onChange={(e) => set('interview_date', e.target.value)} className="cf-input" />
-              <p className="cf-hint">Leave blank to auto-schedule 3 days after the test.</p>
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Interview Date (Optional)
+              </label>
+              <input
+                type="date"
+                value={form.interview_date}
+                onChange={(e) => set('interview_date', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* STEP 2 — questions */}
+      {/* STEP 2: Questions */}
       {step === 1 && (
-        <div className="cf-card cf-rise space-y-5">
-          <div className="flex items-center justify-between">
+        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+          <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
             <div>
-              <h2 className="cf-section-title">Test questions</h2>
-              <p className="cf-section-sub">Build the aptitude test. Students get one timed attempt; grading is automatic.</p>
+              <h2 className="text-lg font-serif font-bold text-[var(--text-primary)]">Test Questions</h2>
+              <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+                Define the multiple-choice questions for the timed aptitude assessment.
+              </p>
             </div>
-            <Badge variant="info">{questions.length} question{questions.length !== 1 && 's'}</Badge>
+            <Badge variant="info">{questions.length} Question(s)</Badge>
           </div>
+
           {questions.map((q, i) => (
-            <div key={i} className="border border-slate-200 rounded-2xl p-5 bg-slate-50/50 space-y-3">
+            <div
+              key={i}
+              className="border border-[var(--border-color)] rounded-[8px] p-5 bg-[var(--bg-subtle)] space-y-3"
+            >
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-700">Question {i + 1}</span>
+                <span className="text-xs font-mono font-bold text-[var(--text-primary)]">
+                  Question {i + 1}
+                </span>
                 <div className="flex items-center gap-2">
-                  <label className="text-xs text-slate-500 font-medium">Marks</label>
-                  <input type="number" min="1" value={q.marks} onChange={(e) => setQ(i, { marks: e.target.value })} className="cf-input !w-20 !py-1.5" />
+                  <label className="text-xs font-mono text-[var(--text-muted)]">Marks:</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={q.marks}
+                    onChange={(e) => setQ(i, { marks: e.target.value })}
+                    className="w-16 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[4px] px-2 py-1 text-xs text-[var(--text-primary)] font-mono"
+                  />
                   {questions.length > 1 && (
-                    <button type="button" onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))} className="text-xs font-semibold text-rose-600 hover:text-rose-700 px-2 py-1">Remove</button>
+                    <button
+                      type="button"
+                      onClick={() => setQuestions((qs) => qs.filter((_, j) => j !== i))}
+                      className="p-1 text-[#9E3524] hover:bg-[#9E3524]/10 rounded"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
               </div>
-              <input value={q.text} onChange={(e) => setQ(i, { text: e.target.value })} placeholder="Write the question…" className="cf-input" />
+
+              <input
+                value={q.text}
+                onChange={(e) => setQ(i, { text: e.target.value })}
+                placeholder="Write question description..."
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-accent)]"
+              />
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {q.options.map((opt, oi) => (
-                  <label key={oi} className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 cursor-pointer transition-all ${q.correct_index === oi ? 'border-emerald-400 bg-emerald-50' : 'border-slate-200 bg-white hover:border-indigo-300'}`}>
-                    <input type="radio" name={`q-${i}`} checked={q.correct_index === oi} onChange={() => setQ(i, { correct_index: oi })} className="accent-emerald-600 w-4 h-4" />
-                    <input value={opt} onChange={(e) => setOpt(i, oi, e.target.value)} placeholder={`Option ${oi + 1}`} className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-slate-400" />
+                  <label
+                    key={oi}
+                    className={`flex items-center gap-2.5 rounded-[6px] border px-3 py-2 cursor-pointer transition-colors ${
+                      q.correct_index === oi
+                        ? 'border-[#0F7B5F] bg-[#0F7B5F]/10 dark:border-[#D9B36C] dark:bg-[#D9B36C]/10'
+                        : 'border-[var(--border-color)] bg-[var(--bg-surface)]'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name={`q-${i}`}
+                      checked={q.correct_index === oi}
+                      onChange={() => setQ(i, { correct_index: oi })}
+                      className="accent-[#0F7B5F] dark:accent-[#D9B36C]"
+                    />
+                    <input
+                      value={opt}
+                      onChange={(e) => setOpt(i, oi, e.target.value)}
+                      placeholder={`Option ${oi + 1}`}
+                      className="flex-1 bg-transparent text-xs text-[var(--text-primary)] focus:outline-none"
+                    />
                   </label>
                 ))}
               </div>
-              <p className="cf-hint">Click the radio to mark the correct answer.</p>
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">
+                Select the radio button next to the correct answer.
+              </p>
             </div>
           ))}
-          <button type="button" onClick={() => setQuestions((qs) => [...qs, emptyQuestion()])} className="cf-btn-secondary w-full border-dashed">
-            + Add another question
-          </button>
+
+          <Button
+            variant="secondary"
+            className="w-full"
+            onClick={() => setQuestions((qs) => [...qs, emptyQuestion()])}
+            icon={<PlusCircle className="w-4 h-4" />}
+          >
+            Add Question
+          </Button>
         </div>
       )}
 
-      {/* STEP 3 — interview setup */}
+      {/* STEP 3: Interview Setup */}
       {step === 2 && (
-        <div className="cf-card cf-rise space-y-5">
-          <div>
-            <h2 className="cf-section-title">Interview setup</h2>
-            <p className="cf-section-sub">Three numbers. The system plans all the interviews from them.</p>
+        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+          <div className="border-b border-[var(--border-color)] pb-3">
+            <h2 className="text-lg font-serif font-bold text-[var(--text-primary)]">Interview Parameters</h2>
+            <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+              The automated scheduler uses these variables to generate non-overlapping candidate slots.
+            </p>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="border border-slate-200 rounded-2xl p-5">
-              <label className="cf-label">Interviewers</label>
+            <div className="p-4 rounded-[8px] border border-[var(--border-color)] bg-[var(--bg-subtle)] space-y-2">
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)]">
+                Interview Panels
+              </label>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={() => setI('num_interviewers', Math.max(1, Number(interview.num_interviewers) - 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600">−</button>
-                <span className="text-2xl font-bold text-slate-900 w-10 text-center">{interview.num_interviewers}</span>
-                <button type="button" onClick={() => setI('num_interviewers', Math.min(10, Number(interview.num_interviewers) + 1))} className="w-9 h-9 rounded-xl border border-slate-200 font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-600">+</button>
+                <button
+                  type="button"
+                  onClick={() => setI('num_interviewers', Math.max(1, Number(interview.num_interviewers) - 1))}
+                  className="w-8 h-8 rounded border border-[var(--border-color)] text-sm font-bold text-[var(--text-primary)]"
+                >
+                  −
+                </button>
+                <span className="font-mono font-bold text-lg text-[var(--text-primary)] w-8 text-center">
+                  {interview.num_interviewers}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setI('num_interviewers', Math.min(10, Number(interview.num_interviewers) + 1))}
+                  className="w-8 h-8 rounded border border-[var(--border-color)] text-sm font-bold text-[var(--text-primary)]"
+                >
+                  +
+                </button>
               </div>
-              <p className="cf-hint">Parallel interview panels the system will run.</p>
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">Parallel interview panels.</p>
             </div>
-            <div className="border border-slate-200 rounded-2xl p-5">
-              <label className="cf-label">Min score to qualify (%)</label>
-              <input type="number" min="0" max="100" value={interview.min_test_score} onChange={(e) => setI('min_test_score', e.target.value)} className="cf-input" />
-              <p className="cf-hint">Below this, candidates are auto-rejected.</p>
+
+            <div className="p-4 rounded-[8px] border border-[var(--border-color)] bg-[var(--bg-subtle)] space-y-2">
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)]">
+                Min Cutoff (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={interview.min_test_score}
+                onChange={(e) => setI('min_test_score', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs font-mono text-[var(--text-primary)]"
+              />
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">Minimum test percentage.</p>
             </div>
-            <div className="border border-slate-200 rounded-2xl p-5">
-              <label className="cf-label">Max shortlist</label>
-              <input type="number" min="1" value={interview.max_shortlist} onChange={(e) => setI('max_shortlist', e.target.value)} className="cf-input" />
-              <p className="cf-hint">Top scorers above the cutoff, capped here.</p>
+
+            <div className="p-4 rounded-[8px] border border-[var(--border-color)] bg-[var(--bg-subtle)] space-y-2">
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)]">
+                Shortlist Cap
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={interview.max_shortlist}
+                onChange={(e) => setI('max_shortlist', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs font-mono text-[var(--text-primary)]"
+              />
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">Max shortlisted candidates.</p>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="cf-label">Test duration (minutes)</label>
-              <input type="number" min="10" value={interview.test_duration_min} onChange={(e) => setI('test_duration_min', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Test Duration (Minutes)
+              </label>
+              <input
+                type="number"
+                min="10"
+                value={interview.test_duration_min}
+                onChange={(e) => setI('test_duration_min', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
             <div>
-              <label className="cf-label">Interview slot length (minutes)</label>
-              <input type="number" min="5" value={interview.interview_duration_min} onChange={(e) => setI('interview_duration_min', e.target.value)} className="cf-input" />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Interview Length (Minutes)
+              </label>
+              <input
+                type="number"
+                min="5"
+                value={interview.interview_duration_min}
+                onChange={(e) => setI('interview_duration_min', e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)]"
+              />
             </div>
-          </div>
-          <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 text-sm text-indigo-900">
-            After results, the system assigns each shortlisted student the earliest free slot across {interview.num_interviewers} panel{Number(interview.num_interviewers) !== 1 && 's'},
-            rotating through the admin's interview rooms. Nobody books anything manually.
           </div>
         </div>
       )}
 
-      {/* STEP 4 — review */}
+      {/* STEP 4: Review */}
       {step === 3 && (
-        <div className="cf-card cf-rise space-y-5">
-          <div>
-            <h2 className="cf-section-title">Review & publish</h2>
-            <p className="cf-section-sub">One last look. Publishing opens applications immediately.</p>
+        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+          <div className="border-b border-[var(--border-color)] pb-3">
+            <h2 className="text-lg font-serif font-bold text-[var(--text-primary)]">Review & Confirmation</h2>
+            <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+              Verify drive details before publishing to eligible students.
+            </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-slate-50 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Drive</div>
-              <div className="font-bold text-slate-900">{form.title || '—'}</div>
-              <div className="text-slate-500">{companies.find((c) => String(c.id) === form.company_id)?.name}</div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-mono">
+            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
+              <span className="text-[var(--text-muted)] uppercase">Role Title</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{form.title}</p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Eligibility</div>
-              <div className="text-slate-700">CGPA ≥ {form.min_cgpa} · {form.allowed_branches.join(', ')} · ≤{form.max_backlogs} backlogs · {form.graduation_year}</div>
+            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
+              <span className="text-[var(--text-muted)] uppercase">Academic Criteria</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
+                CGPA ≥ {form.min_cgpa} · {form.allowed_branches.join(', ')}
+              </p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Test</div>
-              <div className="text-slate-700">{questions.length} questions · {interview.test_duration_min} min · {form.test_date || 'no date'}</div>
+            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
+              <span className="text-[var(--text-muted)] uppercase">Test Assessment</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
+                {questions.length} questions · {interview.test_duration_min} min
+              </p>
             </div>
-            <div className="bg-slate-50 rounded-xl p-4">
-              <div className="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-1">Interviews</div>
-              <div className="text-slate-700">{interview.num_interviewers} panels · ≥{interview.min_test_score}% to qualify · top {interview.max_shortlist}</div>
+            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
+              <span className="text-[var(--text-muted)] uppercase">Interview Capacity</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
+                {interview.num_interviewers} panels · Cutoff {interview.min_test_score}%
+              </p>
             </div>
           </div>
+
           {preview && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 text-sm text-emerald-900">
-              <span className="font-bold text-lg">{preview.count}</span> students currently match these criteria
-              {preview.sample?.length > 0 && <span className="text-emerald-700"> — e.g. {preview.sample.join(', ')}</span>}
+            <div className="p-4 rounded-[6px] border border-[var(--border-gold)] bg-[var(--brand-accent)]/10 text-xs font-mono text-[var(--text-primary)]">
+              <span className="font-bold text-sm">{preview.count}</span> students in the database currently match these criteria.
             </div>
           )}
         </div>
       )}
 
-      {/* nav */}
-      <div className="flex items-center justify-between">
-        <button type="button" onClick={back} disabled={step === 0} className="cf-btn-secondary disabled:opacity-40">← Back</button>
+      {/* Navigation Buttons */}
+      <div className="flex items-center justify-between pt-2">
+        <Button variant="secondary" onClick={back} disabled={step === 0}>
+          ← Back
+        </Button>
         {step < 3 ? (
-          <button type="button" onClick={next} className="cf-btn-primary">Continue →</button>
+          <Button variant="primary" onClick={next}>
+            Continue →
+          </Button>
         ) : (
-          <button type="button" onClick={publish} disabled={publishing} className="cf-btn-success">
-            {publishing ? 'Publishing…' : '🚀 Publish drive'}
-          </button>
+          <Button variant="primary" onClick={publish} loading={publishing}>
+            Publish Placement Drive 🚀
+          </Button>
         )}
       </div>
     </div>
