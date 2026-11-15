@@ -81,3 +81,4 @@ To prevent broken bookmarks or external links, seamless redirects were placed in
 - Files modified: Exclusively within `client/` and `docs/`.
 - Backend intact: `server/`, `database/`, and `windows-agent/` were **untouched**.
 - `server/.env` was **not committed**.
+

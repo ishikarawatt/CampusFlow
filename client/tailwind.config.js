@@ -32,8 +32,9 @@ export default {
         brandMuted: '#B9C7C1',
       },
       fontFamily: {
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        serif: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['"DM Sans"', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Archivo Black"', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {

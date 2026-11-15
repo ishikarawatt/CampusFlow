@@ -1,28 +1,39 @@
-// M4 — Reports: placement funnel per drive (applied → shortlisted → selected)
-// from aggregate queries, with simple funnel bars.
+// Admin Reports — Placement funnel analytics per drive (applied → shortlisted → selected).
 
 import React, { useEffect, useState } from 'react';
 import { reports as reportsApi, errMsg } from '../../api.js';
 import { useToast } from '../../components/Toast.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
+import StatCard from '../../components/StatCard.jsx';
+import { FileBarChart, Users, CheckCircle2, Award } from 'lucide-react';
 
 function Funnel({ applied, shortlisted, selected }) {
   const max = Math.max(applied, 1);
   const bars = [
-    ['Applied', applied, 'bg-indigo-500'],
-    ['Shortlisted', shortlisted, 'bg-amber-500'],
-    ['Selected', selected, 'bg-emerald-500'],
+    { label: 'Applied', n: applied, color: 'bg-[#D9B36C]' },
+    { label: 'Shortlisted', n: shortlisted, color: 'bg-[#0F7B5F]' },
+    { label: 'Selected', n: selected, color: 'bg-[#149674]' },
   ];
+
   return (
-    <div className="space-y-1.5 min-w-[180px]">
-      {bars.map(([label, n, color]) => (
+    <div className="space-y-1.5 min-w-[200px]">
+      {bars.map(({ label, n, color }) => (
         <div key={label} className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 w-20 shrink-0">{label}</span>
-          <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${color}`} style={{ width: `${(n / max) * 100}%` }} />
+          <span className="text-[11px] font-mono text-[var(--text-muted)] w-20 shrink-0">
+            {label}
+          </span>
+          <div className="flex-1 h-2 bg-[var(--bg-subtle)] rounded-full overflow-hidden border border-[var(--border-color)]">
+            <div
+              className={`h-full rounded-full ${color}`}
+              style={{ width: `${(n / max) * 100}%` }}
+            />
           </div>
-          <span className="text-xs font-semibold text-slate-700 w-8 text-right">{n}</span>
+          <span className="text-xs font-mono font-bold text-[var(--text-primary)] w-8 text-right">
+            {n}
+          </span>
         </div>
       ))}
     </div>
@@ -40,7 +51,7 @@ export default function Reports() {
         const { data } = await reportsApi.placement();
         setRows(data ?? []);
       } catch (err) {
-        toast(errMsg(err, 'Could not load the report.'), 'error');
+        toast(errMsg(err, 'Could not load reports.'), 'error');
       } finally {
         setLoading(false);
       }
@@ -48,43 +59,94 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Loading report…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full rounded-[10px]" />
+        <Skeleton className="h-64 w-full rounded-[10px]" />
+      </div>
+    );
+  }
 
-  const totals = rows.reduce(
-    (t, r) => ({
-      applied: t.applied + (r.applied ?? 0),
-      shortlisted: t.shortlisted + (r.shortlisted ?? 0),
-      selected: t.selected + (r.selected ?? 0),
-    }),
-    { applied: 0, shortlisted: 0, selected: 0 }
-  );
+  const totalApplied = rows.reduce((acc, r) => acc + Number(r.applied || 0), 0);
+  const totalShortlisted = rows.reduce((acc, r) => acc + Number(r.shortlisted || 0), 0);
+  const totalSelected = rows.reduce((acc, r) => acc + Number(r.selected || 0), 0);
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-        <h2 className="font-semibold text-slate-900 mb-1">Placement progress — all drives</h2>
-        <p className="text-xs text-slate-500 mb-4">Aggregated from the database with GROUP BY joins, per drive.</p>
-        {rows.length === 0 ? (
-          <EmptyState title="No data yet" message="Once drives collect applications, the progress bars appear here." />
-        ) : (
-          <Funnel {...totals} />
-        )}
+      <PageHeader
+        title="Placement Reports"
+        subtitle="Hiring funnel drop-off analytics and selection conversion metrics across campus drives."
+        breadcrumbs={[
+          { label: 'Admin', to: '/admin' },
+          { label: 'Reports' },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard label="Total Applications" value={totalApplied} icon={<Users className="w-5 h-5" />} />
+        <StatCard label="Total Shortlisted" value={totalShortlisted} icon={<CheckCircle2 className="w-5 h-5" />} />
+        <StatCard label="Placed Students" value={totalSelected} icon={<Award className="w-5 h-5" />} />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100">
-        <div className="px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">Drive report</h2>
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-color)]">
+          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+            Drive Conversion Funnels
+          </h3>
         </div>
-        <DataTable
-          emptyHint="No drives to report on yet."
-          columns={[
-            { key: 'drive', label: 'Drive', render: (r) => <span className="font-medium text-slate-900">{r.drive_title}</span> },
-            { key: 'company', label: 'Company', render: (r) => r.company ?? '—' },
-            { key: 'progress', label: 'Progress', render: (r) => <Funnel applied={r.applied ?? 0} shortlisted={r.shortlisted ?? 0} selected={r.selected ?? 0} /> },
-            { key: 'avg', label: 'Avg CGPA (shortlisted)', render: (r) => (r.avg_cgpa_shortlisted != null ? Number(r.avg_cgpa_shortlisted).toFixed(2) : '—') },
-          ]}
-          rows={rows}
-        />
+
+        {rows.length === 0 ? (
+          <EmptyState
+            title="No report data available"
+            message="Conversion metrics will compute as recruiters conduct assessments and record selections."
+          />
+        ) : (
+          <DataTable
+            columns={[
+              {
+                key: 'drive',
+                label: 'Drive & Partner Company',
+                render: (r) => (
+                  <div>
+                    <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                      {r.title}
+                    </span>
+                    <span className="block text-xs font-mono text-[var(--text-muted)]">
+                      {r.company}
+                    </span>
+                  </div>
+                ),
+              },
+              {
+                key: 'funnel',
+                label: 'Conversion Progression',
+                render: (r) => (
+                  <Funnel
+                    applied={Number(r.applied || 0)}
+                    shortlisted={Number(r.shortlisted || 0)}
+                    selected={Number(r.selected || 0)}
+                  />
+                ),
+              },
+              {
+                key: 'rate',
+                label: 'Selection Rate',
+                render: (r) => {
+                  const applied = Number(r.applied || 0);
+                  const selected = Number(r.selected || 0);
+                  const pct = applied > 0 ? (selected / applied) * 100 : 0;
+                  return (
+                    <span className="font-mono font-bold text-xs text-[#0F7B5F] dark:text-[#D9B36C]">
+                      {pct.toFixed(1)}%
+                    </span>
+                  );
+                },
+              },
+            ]}
+            rows={rows}
+          />
+        )}
       </div>
     </div>
   );

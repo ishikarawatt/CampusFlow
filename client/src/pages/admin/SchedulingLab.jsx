@@ -1,21 +1,30 @@
-// Interview Scheduler — pick a drive, and the system builds the interview timetable:
-// shortlisted students → ordered by the chosen rule → lab reserved → real slots created.
-// No manual candidate entry: priority comes from the students' marks.
+// Scheduling Lab — OS-grade algorithmic timetable generator.
+// Shortlisted students → ordered by Priority (Highest CGPA) or FCFS (Application Order).
+// Lab reservation safety check + simulated algorithm turnaround time comparison.
 
 import React, { useEffect, useState } from 'react';
 import { schedule as scheduleApi, drives as drivesApi, errMsg } from '../../api.js';
 import { useToast } from '../../components/Toast.jsx';
 import { formatDate } from '../../utils.js';
+import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
+import Button from '../../components/Button.jsx';
+import StatCard from '../../components/StatCard.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
-
-const inputCls = 'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#26BFD0]/30 focus:border-[#26BFD0]';
-const labelCls = 'block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5';
+import { Calendar, Clock, Sparkles, RefreshCw, BarChart2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 const ALGOS = [
-  { id: 'priority', label: 'Highest marks first', desc: 'The top CGPA interviews first' },
-  { id: 'fcfs', label: 'Application order', desc: 'Whoever applied first, interviews first' },
+  {
+    id: 'priority',
+    label: 'Highest Marks First (Priority)',
+    desc: 'Candidates with top CGPA and assessment scores interview first.',
+  },
+  {
+    id: 'fcfs',
+    label: 'Application Order (FCFS)',
+    desc: 'Candidates are scheduled in the exact sequential order they applied.',
+  },
 ];
 
 function toLocalInput(d) {
@@ -25,6 +34,7 @@ function toLocalInput(d) {
 
 export default function SchedulingLab() {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
   const [drives, setDrives] = useState([]);
   const [driveId, setDriveId] = useState('');
   const [algo, setAlgo] = useState('priority');
@@ -53,6 +63,8 @@ export default function SchedulingLab() {
         }
       } catch (err) {
         toast(errMsg(err, 'Could not load drives.'), 'error');
+      } finally {
+        setLoading(false);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,11 +89,10 @@ export default function SchedulingLab() {
     } catch (err) {
       const status = err?.response?.status;
       if (status === 409) {
-        // A timetable already exists — load it so the admin can see it.
         try {
           const { data: existing } = await scheduleApi.getAuto(driveId);
           setResult({ existing: existing.slots ?? [], already: true });
-        } catch (_) { /* ignore */ }
+        } catch (_) {}
       }
       toast(errMsg(err, 'Could not generate the timetable.'), 'error');
     } finally {
@@ -106,19 +117,14 @@ export default function SchedulingLab() {
         scheduleApi.simulate({ algorithm: 'fcfs', interviews: mk('fcfs') }),
       ]);
       setCompare([
-        { id: 'priority', label: 'Highest marks first', avg: p.data.avg_waiting_time },
-        { id: 'fcfs', label: 'Application order', avg: f.data.avg_waiting_time },
+        { id: 'priority', label: 'Priority (CGPA Descending)', avg: p.data.avg_waiting_time },
+        { id: 'fcfs', label: 'FCFS (Application Order)', avg: f.data.avg_waiting_time },
       ]);
     } catch (err) {
-      toast(errMsg(err, 'Comparison failed.'), 'error');
+      toast(errMsg(err, 'Algorithm simulation failed.'), 'error');
     } finally {
       setComparing(false);
     }
-  };
-
-  const startOver = () => {
-    if (!driveId) return;
-    setConfirmOpen(true);
   };
 
   const executeClear = async () => {
@@ -127,7 +133,7 @@ export default function SchedulingLab() {
       await scheduleApi.clearAuto(driveId);
       setResult(null);
       setCompare(null);
-      toast('Timetable cleared. Set your options and generate again.', 'success');
+      toast('Timetable cleared. Select parameters to regenerate.', 'success');
       setConfirmOpen(false);
     } catch (err) {
       toast(errMsg(err, 'Could not clear the timetable.'), 'error');
@@ -136,168 +142,277 @@ export default function SchedulingLab() {
     }
   };
 
-  const labBanner = () => {
-    const lab = result?.lab;
-    if (!lab) return null;
-    if (lab.status === 'reserved') {
-      return (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 text-sm">
-          <span className="font-semibold text-emerald-800">✓ {lab.resource_name} reserved</span>
-          <span className="text-emerald-700"> — {lab.seats} seats for the whole interview window.</span>
-        </div>
-      );
-    }
+  if (loading) {
     return (
-      <div className={`${lab.status === 'refused' ? 'bg-rose-50 border-rose-200' : 'bg-amber-50 border-amber-200'} border rounded-xl px-4 py-3 text-sm`}>
-        <span className={`font-semibold ${lab.status === 'refused' ? 'text-rose-800' : 'text-amber-800'}`}>
-          {lab.status === 'refused' ? 'Lab booking refused' : 'No lab booked'}
-        </span>
-        <p className={`mt-1 ${lab.status === 'refused' ? 'text-rose-700' : 'text-amber-700'}`}>{lab.explanation}</p>
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full rounded-[10px]" />
+        <Skeleton className="h-64 w-full rounded-[10px]" />
       </div>
     );
-  };
+  }
+
+  const lab = result?.lab;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Setup */}
-        <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-5">
+    <div className="space-y-6">
+      <PageHeader
+        title="Scheduling Lab"
+        subtitle="Algorithmic interview timetable engine comparing FCFS and Priority heuristics."
+        breadcrumbs={[
+          { label: 'Admin', to: '/admin' },
+          { label: 'OS Lab' },
+          { label: 'Scheduling Lab' },
+        ]}
+      />
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Configuration Panel */}
+        <div className="lg:col-span-2 bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+          <div className="border-b border-[var(--border-color)] pb-3">
+            <h2 className="text-base font-serif font-bold text-[var(--text-primary)]">
+              1. Drive Selection
+            </h2>
+            <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+              Only shortlisted candidates receive automated interview allocations.
+            </p>
+          </div>
+
           <div>
-            <h2 className="font-semibold text-slate-900 mb-1">1. Pick a drive</h2>
-            <p className="text-xs text-slate-500 mb-3">Only shortlisted students get interview slots — no typing names.</p>
-            <label className={labelCls}>Drive</label>
-            <select value={driveId} onChange={(e) => setDriveId(e.target.value)} className={inputCls}>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1.5">
+              Select Placement Drive
+            </label>
+            <select
+              value={driveId}
+              onChange={(e) => setDriveId(e.target.value)}
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-accent)]"
+            >
               {drives.map((d) => (
-                <option key={d.id} value={d.id} disabled={(d.counts?.shortlisted ?? 0) === 0}>
-                  {d.title} — {d.counts?.shortlisted ?? 0} shortlisted
-                  {(d.counts?.shortlisted ?? 0) === 0 ? ' (shortlist first)' : ''}
+                <option
+                  key={d.id}
+                  value={d.id}
+                  disabled={(d.counts?.shortlisted ?? 0) === 0}
+                >
+                  {d.title} ({d.counts?.shortlisted ?? 0} shortlisted)
                 </option>
               ))}
             </select>
             {selected && (
-              <div className="flex gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2">
                 <Badge variant="info">{selected.status}</Badge>
-                <span className="text-xs text-slate-500 self-center">{selected.company?.name}</span>
+                <span className="text-xs font-mono text-[var(--text-muted)]">
+                  {selected.company?.name}
+                </span>
               </div>
             )}
           </div>
 
           <div>
-            <h2 className="font-semibold text-slate-900 mb-2">2. How should interviews be ordered?</h2>
-            <div className="space-y-2">
-              {ALGOS.map((a) => (
-                <label key={a.id} className={`flex items-center gap-3 border rounded-xl px-4 py-2.5 cursor-pointer text-sm ${algo === a.id ? 'border-indigo-500 bg-indigo-50/60' : 'border-slate-200'}`}>
-                  <input type="radio" name="algo" checked={algo === a.id} onChange={() => setAlgo(a.id)} className="accent-indigo-600" />
-                  <span className="font-semibold text-slate-800">{a.label}</span>
-                  <span className="text-slate-500 text-xs">{a.desc}</span>
-                </label>
-              ))}
+            <h2 className="text-base font-serif font-bold text-[var(--text-primary)] mb-1.5">
+              2. Scheduling Algorithm
+            </h2>
+            <div className="space-y-2.5">
+              {ALGOS.map((a) => {
+                const isSelected = algo === a.id;
+                return (
+                  <label
+                    key={a.id}
+                    className={`block p-3.5 rounded-[6px] border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'border-[#D9B36C] bg-[#D9B36C]/10 text-[var(--text-primary)] font-semibold'
+                        : 'border-[var(--border-color)] bg-[var(--bg-subtle)] text-[var(--text-secondary)] hover:border-[var(--brand-accent)]/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="radio"
+                        name="algo"
+                        checked={isSelected}
+                        onChange={() => setAlgo(a.id)}
+                        className="accent-[#0F7B5F] dark:accent-[#D9B36C]"
+                      />
+                      <span className="text-xs font-mono uppercase tracking-wide">
+                        {a.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)] font-sans mt-1.5 ml-6">
+                      {a.desc}
+                    </p>
+                  </label>
+                );
+              })}
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Minutes per interview</label>
-              <input type="number" min="5" max="120" value={minutes} onChange={(e) => setMinutes(e.target.value)} className={inputCls} />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Slot Length (Min)
+              </label>
+              <input
+                type="number"
+                min="5"
+                max="120"
+                value={minutes}
+                onChange={(e) => setMinutes(e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+              />
             </div>
             <div>
-              <label className={labelCls}>Interviews start at</label>
-              <input type="datetime-local" value={startsAt} onChange={(e) => setStartsAt(e.target.value)} className={inputCls} />
+              <label className="block text-xs font-mono text-[var(--text-secondary)] mb-1">
+                Start Time
+              </label>
+              <input
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+              />
             </div>
           </div>
 
-          <button onClick={generate} disabled={running || !driveId}
-            className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-sm font-semibold rounded-xl px-4 py-2.5 transition-colors">
-            {running ? 'Building timetable…' : 'Generate interview timetable'}
-          </button>
-          <p className="text-xs text-slate-400">This creates real interview slots and reserves a lab — students will see their interview time.</p>
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={generate}
+            disabled={running || !driveId}
+            loading={running}
+            icon={<Sparkles className="w-4 h-4" />}
+          >
+            Generate Interview Timetable
+          </Button>
+
+          <p className="text-[11px] font-mono text-[var(--text-muted)]">
+            Executes Banker's safety check on physical interview room inventory before slot generation.
+          </p>
         </div>
 
-        {/* Result */}
-        <div className="lg:col-span-3 space-y-4">
+        {/* Results & Simulation Panel */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Lab Booking Banner */}
+          {lab && (
+            <div
+              className={`p-4 rounded-[6px] border text-xs font-mono flex items-start gap-3 ${
+                lab.status === 'reserved'
+                  ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                  : 'border-[var(--status-warning-border)] bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]'
+              }`}
+            >
+              <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-sm block mb-0.5">
+                  {lab.status === 'reserved' ? `✓ ${lab.resource_name} Reserved` : 'Lab Booking Refused'}
+                </span>
+                {lab.status === 'reserved'
+                  ? `${lab.seats} seats secured for the duration of this interview cycle.`
+                  : lab.explanation}
+              </div>
+            </div>
+          )}
+
           {!result ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-10 text-center">
-              <p className="text-sm text-slate-400">Pick a drive and generate — the timetable, lab booking and comparison appear here.</p>
+            <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-12 text-center space-y-3 shadow-subtle">
+              <Calendar className="w-10 h-10 text-[var(--text-muted)] mx-auto opacity-40" />
+              <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+                Timetable Engine Idle
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] font-mono max-w-sm mx-auto">
+                Pick a drive and generate to trigger candidate slot allocations, room reservations, and algorithmic benchmarks.
+              </p>
             </div>
           ) : result.already ? (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-              <h2 className="font-semibold text-slate-900 mb-1">Timetable already exists</h2>
-              <p className="text-sm text-slate-500 mb-4">This drive already has {result.existing.length} interview slots.</p>
-              <div className="space-y-1.5 max-h-96 overflow-y-auto slim-scroll">
-                {result.existing.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between text-sm border-b border-slate-50 py-2">
-                    <span className="font-medium text-slate-800">{s.title.replace(/^Interview — /, '')}</span>
-                    <span className="text-xs text-slate-500">{formatDate(s.starts_at)}{s.venue ? ` · ${s.venue}` : ''}</span>
-                  </div>
-                ))}
+            <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
+              <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+                <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+                  Existing Timetable Loaded
+                </h3>
+                <Button variant="danger" size="sm" onClick={() => setConfirmOpen(true)}>
+                  Clear & Re-generate
+                </Button>
               </div>
-              <button onClick={startOver} className="mt-4 border border-rose-200 text-rose-700 hover:bg-rose-50 text-sm font-semibold rounded-xl px-4 py-2 transition-colors">
-                Start over (delete timetable)
-              </button>
+              <p className="text-xs font-mono text-[var(--text-secondary)]">
+                {result.existing?.length ?? 0} slots are already scheduled for this drive in the database.
+              </p>
             </div>
           ) : (
-            <>
-              {labBanner()}
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <h2 className="font-semibold text-slate-900">Interview timetable — {result.drive.title}</h2>
-                  <div className="flex gap-2">
-                    <button onClick={compareAlgos} disabled={comparing}
-                      className="border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50 disabled:opacity-60 text-slate-700 text-xs font-semibold rounded-xl px-3 py-1.5 transition-colors">
-                      {comparing ? 'Comparing…' : 'Compare ordering rules'}
-                    </button>
-                    <button onClick={startOver} className="border border-rose-200 text-rose-700 hover:bg-rose-50 text-xs font-semibold rounded-xl px-3 py-1.5 transition-colors">
-                      Start over
-                    </button>
-                  </div>
+            <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-5">
+              <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+                <div>
+                  <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+                    Generated Timetable
+                  </h3>
+                  <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+                    {result.timeline?.length ?? 0} Candidate Slots Built across {result.panels ?? 1} Panel(s)
+                  </p>
                 </div>
-                <div className="space-y-1.5 max-h-[420px] overflow-y-auto slim-scroll pr-1">
-                  {result.timeline.map((t, i) => (
-                    <div key={t.student_id} className="flex items-center gap-3 border border-slate-100 rounded-xl px-3 py-2 hover:bg-slate-50/60">
-                      <span className="w-7 h-7 shrink-0 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold flex items-center justify-center">{i + 1}</span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-medium text-slate-900 truncate">{t.name}</div>
-                        <div className="text-xs text-slate-400">{formatDate(t.start)} – {formatDate(t.end)}</div>
-                      </div>
-                      <span className="text-xs font-semibold text-slate-600 bg-slate-100 rounded-lg px-2 py-1 shrink-0">CGPA {t.cgpa.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-3 gap-3 mt-4 text-sm">
-                  <div className="bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Interviews</div>
-                    <div className="font-semibold text-slate-900 mt-0.5">{result.timeline.length}</div>
-                  </div>
-                  <div className="bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Avg waiting time</div>
-                    <div className="font-semibold text-slate-900 mt-0.5">{Number(result.avg_waiting_time ?? 0).toFixed(1)} min</div>
-                  </div>
-                  <div className="bg-slate-50 rounded-xl px-4 py-3">
-                    <div className="text-xs text-slate-500 uppercase tracking-wide">Ordering rule</div>
-                    <div className="font-semibold text-slate-900 mt-0.5">{result.algorithm === 'priority' ? 'Highest marks first' : 'Application order'}</div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={compareAlgos}
+                    loading={comparing}
+                    icon={<BarChart2 className="w-4 h-4" />}
+                  >
+                    Compare FCFS vs Priority
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmOpen(true)}>
+                    Clear
+                  </Button>
                 </div>
               </div>
+
+              {/* Algorithm Comparison Benchmarks */}
               {compare && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
-                  <h2 className="font-semibold text-slate-900 mb-3">Which ordering rule is fairer?</h2>
-                  <div className="grid grid-cols-2 gap-3">
+                <div className="p-4 rounded-[6px] border border-[var(--border-gold)] bg-[var(--bg-subtle)] space-y-3">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-primary)] block">
+                    OS Scheduling Benchmark (Turnaround / Wait)
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs font-mono">
                     {compare.map((c) => (
-                      <div key={c.id} className="border border-slate-100 rounded-xl p-4">
-                        <div className="text-sm font-semibold text-slate-900">{c.label}</div>
-                        <div className="text-2xl font-bold text-slate-900 mt-1">{Number(c.avg).toFixed(1)}<span className="text-sm font-normal text-slate-500"> min avg wait</span></div>
+                      <div
+                        key={c.id}
+                        className={`p-3 rounded-[4px] border ${
+                          c.id === algo
+                            ? 'border-[#D9B36C] bg-[var(--brand-accent)]/15 text-[var(--text-primary)] font-bold'
+                            : 'border-[var(--border-color)] bg-[var(--bg-surface)] text-[var(--text-secondary)]'
+                        }`}
+                      >
+                        <div className="text-[11px] uppercase opacity-75">{c.label}</div>
+                        <div className="text-lg mt-1 font-bold">
+                          {c.avg.toFixed(1)} <span className="text-xs font-normal">min avg wait</span>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-slate-500 mt-3">
-                    {compare[0].avg <= compare[1].avg
-                      ? 'Highest marks first keeps the average wait lower here.'
-                      : 'Application order keeps the average wait lower here.'}{' '}
-                    Same students, same interviews — only the order changes.
-                  </p>
                 </div>
               )}
-            </>
+
+              {/* Timeline Slot List */}
+              <div className="space-y-2 max-h-96 overflow-y-auto slim-scroll pr-1">
+                {result.timeline?.map((slot, i) => (
+                  <div
+                    key={i}
+                    className="p-3.5 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)] flex items-center justify-between text-xs font-mono"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="w-6 h-6 rounded-[4px] bg-[#D9B36C] text-[#0B1F1A] font-bold flex items-center justify-center shrink-0">
+                        {i + 1}
+                      </span>
+                      <div>
+                        <div className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                          {slot.student_name}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                          Panel {slot.panel} · {slot.venue || 'Lab TBA'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right text-[var(--text-secondary)] font-bold">
+                      {formatDate(slot.starts_at)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       </div>
@@ -307,10 +422,10 @@ export default function SchedulingLab() {
         onClose={() => setConfirmOpen(false)}
         onConfirm={executeClear}
         title="Clear Timetable?"
-        message="This will delete this timetable and its reserved lab booking. You can generate a new one immediately after."
-        confirmText="Delete & Clear"
-        loading={clearing}
+        message="This will remove the generated interview slots for this drive so you can build them with new parameters."
+        confirmLabel="Yes, Clear Slots"
         variant="danger"
+        loading={clearing}
       />
     </div>
   );

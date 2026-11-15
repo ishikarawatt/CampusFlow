@@ -1,21 +1,19 @@
-// Admin resources — the physical inventory the pipeline runs on.
-// Labs (with capacity) feed the test-session auto-scheduler; interview rooms
-// feed the interview timetable. Add them here; the system does the rest.
-// The manual allocation board below still runs the Banker's safety check.
+// Admin Resources — Physical inventory (Labs & Interview Rooms).
+// Automated scheduling operates on this capacity; manual board executes Banker's safety check.
 
 import React, { useEffect, useState } from 'react';
 import { resources as resourcesApi, allocations as allocationsApi, errMsg } from '../../api.js';
 import { formatDate, titleCase } from '../../utils.js';
 import { useToast } from '../../components/Toast.jsx';
+import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
-import EmptyState from '../../components/EmptyState.jsx';
+import DataTable from '../../components/DataTable.jsx';
+import Button from '../../components/Button.jsx';
+import StatCard from '../../components/StatCard.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
+import { Boxes, Building2, ShieldCheck, PlusCircle, AlertCircle } from 'lucide-react';
 
 const TYPE_BADGE = { lab: 'info', room: 'success', interviewer: 'warning' };
-const TYPE_HINT = {
-  lab: 'Test sessions are auto-batched into labs by capacity, biggest first.',
-  room: 'Interviews are spread across rooms in rotation.',
-  interviewer: 'Named interviewers for manual reference.',
-};
 
 export default function Resources() {
   const { toast } = useToast();
@@ -27,14 +25,25 @@ export default function Resources() {
   const [verdict, setVerdict] = useState(null);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', type: 'lab', capacity: '40', location: '' });
-  const [allocForm, setAllocForm] = useState({ resource_id: '', purpose: '', seats_needed: '10', starts_at: '', ends_at: '' });
+  const [allocForm, setAllocForm] = useState({
+    resource_id: '',
+    purpose: '',
+    seats_needed: '10',
+    starts_at: '',
+    ends_at: '',
+  });
 
   const load = async () => {
     try {
-      const [{ data: r }, { data: a }] = await Promise.all([resourcesApi.list(), allocationsApi.list()]);
+      const [{ data: r }, { data: a }] = await Promise.all([
+        resourcesApi.list(),
+        allocationsApi.list(),
+      ]);
       setResources(r ?? []);
       setAllocs(a ?? []);
-      if ((r ?? []).length && !allocForm.resource_id) setAllocForm((f) => ({ ...f, resource_id: String(r[0].id) }));
+      if ((r ?? []).length && !allocForm.resource_id) {
+        setAllocForm((f) => ({ ...f, resource_id: String(r[0].id) }));
+      }
     } catch (err) {
       toast(errMsg(err, 'Could not load resources.'), 'error');
     } finally {
@@ -42,11 +51,17 @@ export default function Resources() {
     }
   };
 
-  useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addResource = async (e) => {
     e.preventDefault();
-    if (!form.name.trim()) { toast('Give the resource a name.', 'error'); return; }
+    if (!form.name.trim()) {
+      toast('Give the resource a name.', 'error');
+      return;
+    }
     setSaving(true);
     try {
       await resourcesApi.create({
@@ -55,7 +70,7 @@ export default function Resources() {
         capacity: Math.max(1, Number(form.capacity) || 1),
         location: form.location.trim() || null,
       });
-      toast(`${form.name.trim()} added to inventory.`, 'success');
+      toast(`${form.name.trim()} added to resource pool.`, 'success');
       setForm({ name: '', type: 'lab', capacity: '40', location: '' });
       setShowAdd(false);
       load();
@@ -81,13 +96,17 @@ export default function Resources() {
         starts_at: allocForm.starts_at,
         ends_at: allocForm.ends_at,
       });
-      setVerdict({ ok: true, message: 'Booked — the safety check passed.' });
+      setVerdict({ ok: true, message: "Resource booked — Banker's safety check passed." });
       setAllocForm((f) => ({ ...f, purpose: '', starts_at: '', ends_at: '' }));
       load();
     } catch (err) {
       if (err?.response?.status === 409) {
         const explanation = err?.response?.data?.explanation || err?.response?.data?.error;
-        setVerdict({ ok: false, message: 'Booking refused by the safety check.', explanation });
+        setVerdict({
+          ok: false,
+          message: 'Booking refused: Unsafe state (Banker Algorithm).',
+          explanation,
+        });
       } else {
         toast(errMsg(err, 'Could not book the resource.'), 'error');
       }
@@ -96,7 +115,14 @@ export default function Resources() {
     }
   };
 
-  if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Loading resources…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-16 w-full rounded-[10px]" />
+        <Skeleton className="h-64 w-full rounded-[10px]" />
+      </div>
+    );
+  }
 
   const grouped = resources.reduce((m, r) => {
     const t = r.type ?? 'other';
@@ -107,139 +133,248 @@ export default function Resources() {
 
   return (
     <div className="space-y-6">
-      {/* Inventory header + add */}
-      <div className="cf-card cf-rise">
-        <div className="flex items-center justify-between mb-1">
-          <div>
-            <h2 className="cf-section-title">Inventory</h2>
-            <p className="cf-section-sub">
-              {grouped.lab?.length ?? 0} labs · <b>{labSeats}</b> test seats · {grouped.room?.length ?? 0} interview rooms.
-              The pipeline schedules against this inventory automatically.
-            </p>
-          </div>
-          <button onClick={() => setShowAdd((v) => !v)} className="cf-btn-primary">+ Add resource</button>
-        </div>
+      <PageHeader
+        title="Resources & Labs"
+        subtitle="Physical capacity inventory powering the automated test and interview timetable engines."
+        breadcrumbs={[
+          { label: 'Admin', to: '/admin' },
+          { label: 'Resources' },
+        ]}
+        actions={
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setShowAdd((v) => !v)}
+            icon={<PlusCircle className="w-4 h-4" />}
+          >
+            Add Resource
+          </Button>
+        }
+      />
 
-        {showAdd && (
-          <form onSubmit={addResource} className="mt-4 p-5 bg-indigo-50/60 border border-indigo-100 rounded-2xl grid grid-cols-1 md:grid-cols-5 gap-3 cf-rise">
-            <div className="md:col-span-2">
-              <label className="cf-label">Name</label>
-              <input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Lab C" className="cf-input" />
+      {/* KPI Ribbon */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <StatCard
+          label="Computer Labs"
+          value={grouped.lab?.length ?? 0}
+          icon={<Boxes className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Total Test Seats"
+          value={labSeats}
+          icon={<Building2 className="w-5 h-5" />}
+        />
+        <StatCard
+          label="Interview Rooms"
+          value={grouped.room?.length ?? 0}
+          icon={<Boxes className="w-5 h-5" />}
+        />
+      </div>
+
+      {/* New Resource Form Modal / Inline */}
+      {showAdd && (
+        <form
+          onSubmit={addResource}
+          className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-gold)] p-6 shadow-subtle space-y-4"
+        >
+          <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+            <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+              Register New Campus Resource
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowAdd(false)}
+              className="text-xs font-mono text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+                Resource Name
+              </label>
+              <input
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="e.g. Turing Lab C"
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] font-mono"
+              />
             </div>
             <div>
-              <label className="cf-label">Type</label>
-              <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} className="cf-input">
-                <option value="lab">Lab (test venue)</option>
-                <option value="room">Interview room</option>
-                <option value="interviewer">Interviewer</option>
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+                Type
+              </label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: e.target.value })}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] font-mono"
+              >
+                <option value="lab">Computer Lab</option>
+                <option value="room">Interview Room</option>
+                <option value="interviewer">Panel Interviewer</option>
               </select>
             </div>
             <div>
-              <label className="cf-label">Capacity</label>
-              <input type="number" min="1" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} className="cf-input" />
+              <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+                Seat Capacity
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={form.capacity}
+                onChange={(e) => setForm({ ...form, capacity: e.target.value })}
+                className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-2 text-sm text-[var(--text-primary)] font-mono"
+              />
             </div>
-            <div>
-              <label className="cf-label">Location</label>
-              <input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Block / floor" className="cf-input" />
-            </div>
-            <div className="md:col-span-5 flex items-center gap-3">
-              <button type="submit" disabled={saving} className="cf-btn-primary !py-2">{saving ? 'Adding…' : 'Add to inventory'}</button>
-              <span className="text-xs text-slate-500">{TYPE_HINT[form.type]}</span>
-            </div>
-          </form>
-        )}
+          </div>
 
-        <div className="mt-5 space-y-5">
-          {resources.length === 0 ? (
-            <EmptyState title="No resources registered" message="Add labs and interview rooms above — the pipeline needs them to schedule sessions." />
-          ) : (
-            Object.entries(grouped).map(([type, list]) => (
-              <div key={type}>
-                <div className="flex items-center gap-2 mb-2">
-                  <h3 className="text-sm font-bold text-slate-700">{titleCase(type)}s</h3>
-                  <Badge variant={TYPE_BADGE[type] ?? 'neutral'}>{list.length}</Badge>
-                </div>
-                <p className="text-xs text-slate-400 mb-2">{TYPE_HINT[type]}</p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  {list.map((r) => (
-                    <div key={r.id} className="border border-slate-200 rounded-xl px-4 py-3.5 hover:border-indigo-200 hover:shadow-sm transition-all">
-                      <div className="flex items-center justify-between">
-                        <div className="font-bold text-slate-900">{r.name}</div>
-                        <Badge variant={r.status === 'available' ? 'success' : 'warning'}>{r.status ?? 'available'}</Badge>
-                      </div>
-                      <div className="text-xs text-slate-500 mt-1">
-                        {type === 'lab' ? `${r.capacity} seats` : type === 'room' ? '1 room' : `Capacity ${r.capacity}`}{r.location ? ` · ${r.location}` : ''}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      {/* Manual booking with safety check */}
-      <div className="cf-card cf-rise">
-        <h2 className="cf-section-title">Manual booking</h2>
-        <p className="cf-section-sub mb-4">
-          For one-off bookings outside the automatic scheduling. Every request is safety-checked first —
-          if it would overbook a resource, it's refused with the reason why.
-        </p>
-        <form onSubmit={allocate} className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="cf-label">Resource</label>
-            <select value={allocForm.resource_id} onChange={(e) => setAllocForm({ ...allocForm, resource_id: e.target.value })} className="cf-input">
-              {resources.map((r) => <option key={r.id} value={r.id}>{r.name} ({titleCase(r.type)}, cap {r.capacity})</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="cf-label">Purpose</label>
-            <input value={allocForm.purpose} onChange={(e) => setAllocForm({ ...allocForm, purpose: e.target.value })} placeholder="Workshop — Batch A" className="cf-input" />
-          </div>
-          <div>
-            <label className="cf-label">Seats needed</label>
-            <input type="number" min="1" value={allocForm.seats_needed} onChange={(e) => setAllocForm({ ...allocForm, seats_needed: e.target.value })} className="cf-input" />
-          </div>
-          <div>
-            <label className="cf-label">Starts</label>
-            <input type="datetime-local" value={allocForm.starts_at} onChange={(e) => setAllocForm({ ...allocForm, starts_at: e.target.value })} className="cf-input" />
-          </div>
-          <div>
-            <label className="cf-label">Ends</label>
-            <input type="datetime-local" value={allocForm.ends_at} onChange={(e) => setAllocForm({ ...allocForm, ends_at: e.target.value })} className="cf-input" />
-          </div>
-          <div className="flex items-end">
-            <button type="submit" disabled={allocating || resources.length === 0} className="cf-btn-primary w-full">
-              {allocating ? 'Checking…' : 'Book resource'}
-            </button>
+          <div className="flex justify-end pt-2">
+            <Button variant="primary" size="sm" type="submit" loading={saving}>
+              Save Resource
+            </Button>
           </div>
         </form>
+      )}
+
+      {/* Resource Inventory List */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
+        <div className="px-5 py-4 border-b border-[var(--border-color)]">
+          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+            Active Inventory Pool
+          </h3>
+        </div>
+        <DataTable
+          columns={[
+            {
+              key: 'name',
+              label: 'Resource Name',
+              render: (r) => (
+                <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                  {r.name}
+                </span>
+              ),
+            },
+            {
+              key: 'type',
+              label: 'Classification',
+              render: (r) => (
+                <Badge variant={TYPE_BADGE[r.type] ?? 'neutral'}>
+                  {titleCase(r.type)}
+                </Badge>
+              ),
+            },
+            {
+              key: 'capacity',
+              label: 'Workstation Capacity',
+              render: (r) => (
+                <span className="font-mono font-bold text-xs text-[var(--text-primary)]">
+                  {r.capacity} Seats
+                </span>
+              ),
+            },
+            {
+              key: 'location',
+              label: 'Building Location',
+              render: (r) => (
+                <span className="font-mono text-xs text-[var(--text-muted)]">
+                  {r.location || 'Main Campus'}
+                </span>
+              ),
+            },
+          ]}
+          rows={resources}
+        />
+      </div>
+
+      {/* Manual Allocation Board (Banker Algorithm) */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
+        <div className="border-b border-[var(--border-color)] pb-3">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5 text-[#0F7B5F] dark:text-[#D9B36C]" />
+            <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+              Manual Booking & Deadlock Avoidance Board
+            </h3>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+            Reservations are evaluated using Dijkstra's Banker Algorithm to prevent deadlocks and oversubscription.
+          </p>
+        </div>
+
         {verdict && (
-          <div className={`mt-4 rounded-xl px-4 py-3 text-sm border ${verdict.ok ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-amber-50 border-amber-200 text-amber-900'}`}>
-            <div className="font-semibold">{verdict.message}</div>
-            {verdict.explanation && <p className="mt-1 text-[13px]">{verdict.explanation}</p>}
+          <div
+            className={`p-4 rounded-[6px] border text-xs font-mono ${
+              verdict.ok
+                ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
+                : 'border-[var(--status-danger-border)] bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]'
+            }`}
+          >
+            <span className="font-bold block mb-0.5">{verdict.message}</span>
+            {verdict.explanation && <p className="mt-1 opacity-90">{verdict.explanation}</p>}
           </div>
         )}
-        <div className="cf-divider" />
-        <h3 className="text-sm font-bold text-slate-700 mb-3">Booking board</h3>
-        {allocs.length === 0 ? (
-          <p className="text-sm text-slate-500">No manual bookings yet.</p>
-        ) : (
-          <ul className="space-y-2">
-            {allocs.map((a) => (
-              <li key={a.id} className="border border-slate-100 rounded-xl px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-                <div>
-                  <span className="font-medium text-slate-900">{a.purpose}</span>
-                  <div className="text-xs text-slate-500 mt-0.5">
-                    {a.resource?.name ?? 'Resource'} · {formatDate(a.starts_at)} → {formatDate(a.ends_at)}
-                  </div>
-                </div>
-                <Badge variant="info">booked</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
+
+        <form onSubmit={allocate} className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+              Resource
+            </label>
+            <select
+              value={allocForm.resource_id}
+              onChange={(e) => setAllocForm({ ...allocForm, resource_id: e.target.value })}
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+            >
+              {resources.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name} ({r.capacity} seats)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+              Purpose / Drive
+            </label>
+            <input
+              value={allocForm.purpose}
+              onChange={(e) => setAllocForm({ ...allocForm, purpose: e.target.value })}
+              placeholder="e.g. Aptitude Test Batch 1"
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+              Start Time
+            </label>
+            <input
+              type="datetime-local"
+              value={allocForm.starts_at}
+              onChange={(e) => setAllocForm({ ...allocForm, starts_at: e.target.value })}
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-mono uppercase text-[var(--text-secondary)] mb-1">
+              End Time
+            </label>
+            <input
+              type="datetime-local"
+              value={allocForm.ends_at}
+              onChange={(e) => setAllocForm({ ...allocForm, ends_at: e.target.value })}
+              className="w-full bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] px-3 py-1.5 text-xs text-[var(--text-primary)] font-mono"
+            />
+          </div>
+
+          <div className="sm:col-span-4 flex justify-end">
+            <Button variant="primary" size="sm" type="submit" loading={allocating}>
+              Verify & Allocate
+            </Button>
+          </div>
+        </form>
       </div>
     </div>
   );
