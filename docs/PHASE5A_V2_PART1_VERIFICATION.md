@@ -56,3 +56,4 @@
 ### 7. Scope & Isolation
 - `git diff --stat`: Exactly 25 client files modified/created.
 - Directories `server/`, `database/`, and `windows-agent/` were completely untouched.
+
