@@ -116,7 +116,7 @@ Open `http://localhost:5173` in your browser.
 |---|---|---|---|
 | **Admin** | `admin@campusflow.local` | `/admin` | Full system control, Kernel Monitor, Lab allocations, Exam seat map |
 | **Recruiter** | `priya@techcorp.com` | `/recruiter` | Drive creation, Aptitude test setup, Shortlisting |
-| **Student** | `aarav@student.local` | `/student` | Profile, Drive application, MCQ test taking, Schedule |
+| **Student** | `ishika@student.local` | `/student` | Profile, Drive application, MCQ test taking, Schedule |
 
 One-click demo login buttons are provided directly on the `/login` page.
 
