@@ -36,8 +36,8 @@ export default function MyBookings() {
         {b.slot.type === 'test' ? '📝' : '🎤'}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="font-bold text-slate-900 truncate">{b.slot.title}</div>
-        <div className="text-sm text-slate-500">{formatDate(b.slot.starts_at)} → {formatDate(b.slot.ends_at)}</div>
+        <div className="font-bold text-[var(--text-primary)] truncate">{b.slot.title}</div>
+        <div className="text-sm text-[var(--text-muted)]">{formatDate(b.slot.starts_at)} → {formatDate(b.slot.ends_at)}</div>
       </div>
       <div className="text-right shrink-0">
         <Badge variant={b.slot.type === 'test' ? 'info' : 'success'}>{b.slot.type}</Badge>

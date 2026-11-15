@@ -59,17 +59,17 @@ export default function DriveDetail() {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="cf-card cf-rise">
-        <div className="text-sm text-slate-500">{drive.company?.name}</div>
-        <h2 className="text-2xl font-bold text-slate-900">{drive.title}</h2>
-        {drive.description && <p className="text-sm text-slate-500 mt-2">{drive.description}</p>}
+        <div className="text-sm text-[var(--text-muted)]">{drive.company?.name}</div>
+        <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)]">{drive.title}</h2>
+        {drive.description && <p className="text-sm text-[var(--text-muted)] mt-2">{drive.description}</p>}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-5 text-sm">
           {[
             ['Minimum CGPA', drive.min_cgpa], ['Branches', (drive.allowed_branches ?? []).join(', ')],
             ['Max backlogs', drive.max_backlogs], ['Apply by', formatDate(drive.application_deadline).split(',')[0]],
           ].map(([k, v]) => (
-            <div key={k} className="bg-slate-50 rounded-xl px-4 py-3">
-              <div className="text-[11px] text-slate-500 uppercase tracking-wide font-semibold">{k}</div>
-              <div className="font-bold text-slate-900 mt-0.5">{v}</div>
+            <div key={k} className="bg-[var(--bg-subtle)] border border-[var(--border-color)] rounded-xl px-4 py-3">
+              <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wide font-semibold">{k}</div>
+              <div className="font-bold text-[var(--text-primary)] mt-0.5">{v}</div>
             </div>
           ))}
         </div>
@@ -117,9 +117,9 @@ export default function DriveDetail() {
           )}
 
           {my_result && (
-            <div className={`rounded-2xl p-4 border ${Number(my_result.percentage) >= Number(drive.min_test_score) ? 'bg-emerald-50 border-emerald-200' : 'bg-slate-50 border-slate-200'}`}>
-              <div className="font-bold text-sm text-slate-900">📊 Your result: {Number(my_result.percentage).toFixed(1)}%</div>
-              <div className="text-sm text-slate-500 mt-0.5">
+            <div className={`rounded-2xl p-4 border ${Number(my_result.percentage) >= Number(drive.min_test_score) ? 'bg-[var(--status-success-bg)] border-[var(--status-success-border)]' : 'bg-[var(--bg-subtle)] border-[var(--border-color)]'}`}>
+              <div className="font-bold text-sm text-[var(--text-primary)]">📊 Your result: {Number(my_result.percentage).toFixed(1)}%</div>
+              <div className="text-sm text-[var(--text-muted)] mt-0.5">
                 {Number(my_result.score)}/{Number(my_result.total)} marks · cutoff {drive.min_test_score}%
               </div>
             </div>

@@ -39,3 +39,4 @@ A student may only accept **one** placement offer. Once an offer is accepted:
 1. The accepted offer's status becomes `accepted` and its application status becomes `selected`.
 2. Any subsequent attempt by the student to accept another offer is rejected with a `409 Conflict` ("You have already accepted a placement offer. A student may accept only one offer.").
 3. Any other pending offers for that student remain declined/withdrawn according to placement cell rules.
+

@@ -55,38 +55,104 @@ async function seed(conn) {
 
   // ---------- students (user + student rows) ----------
   const students = [
-    ['Aarav Sharma', 'aarav@student.local', '2418001', 'CSE', 9.1, 0],
-    ['Diya Patel', 'diya@student.local', '2418002', 'CSE', 8.4, 0],
-    ['Kabir Singh', 'kabir@student.local', '2418003', 'IT', 8.8, 1],
-    ['Ananya Iyer', 'ananya@student.local', '2418004', 'ECE', 7.6, 0],
-    ['Vikram Rao', 'vikram@student.local', '2418005', 'CSE', 7.9, 2],
-    ['Sneha Kulkarni', 'sneha@student.local', '2418006', 'IT', 6.8, 1],
-    ['Arjun Nair', 'arjun@student.local', '2418007', 'ME', 7.2, 0],
-    ['Ishita Verma', 'ishita@student.local', '2418008', 'CSE', 9.4, 0],
-    ['Rohan Gupta', 'rohan@student.local', '2418009', 'ECE', 6.5, 3],
-    ['Meera Joshi', 'meera@student.local', '2418010', 'IT', 8.1, 0],
-    ['Aditya Rao', 'aditya@student.local', '2418011', 'CSE', 7.4, 1],
-    ['Pooja Reddy', 'pooja@student.local', '2418012', 'ECE', 8.9, 0],
+    [
+      'Aarav Sharma', 'aarav@student.local', '2418001', 'CSE', 9.1, 0,
+      '+91 98765 43210',
+      ['React', 'Node.js', 'TypeScript', 'MySQL', 'Docker', 'Kubernetes'],
+      [
+        { title: 'CampusFlow Orchestrator', desc: 'Real-time test delivery and slot allocator', link: 'https://github.com/aarav/campusflow' },
+        { title: 'Distributed Key-Value Store', desc: 'Raft consensus in Go', link: 'https://github.com/aarav/raft-kv' },
+      ],
+      [
+        { name: 'AWS Certified Cloud Practitioner', issuer: 'Amazon Web Services', year: 2025 },
+        { name: 'Certified Kubernetes Administrator (CKA)', issuer: 'CNCF', year: 2026 },
+      ],
+    ],
+    [
+      'Diya Patel', 'diya@student.local', '2418002', 'CSE', 8.4, 0,
+      '+91 98234 56789',
+      ['Python', 'PyTorch', 'Data Analytics', 'PostgreSQL', 'FastAPI'],
+      [
+        { title: 'VisionDefect AI', desc: 'Industrial defect classification using ResNet', link: 'https://github.com/diya/vision-defect' },
+      ],
+      [
+        { name: 'Deep Learning Specialization', issuer: 'DeepLearning.AI', year: 2025 },
+      ],
+    ],
+    [
+      'Kabir Singh', 'kabir@student.local', '2418003', 'IT', 8.8, 1,
+      '+91 97123 45678',
+      ['Java', 'Spring Boot', 'Kafka', 'Redis', 'Microservices'],
+      [
+        { title: 'Order Stream Engine', desc: 'Event-driven high-throughput processing pipeline' },
+      ],
+      [
+        { name: 'Oracle Certified Java SE 17 Developer', issuer: 'Oracle', year: 2025 },
+      ],
+    ],
+    ['Ananya Iyer', 'ananya@student.local', '2418004', 'ECE', 7.6, 0, '+91 96543 21098', ['C++', 'Embedded C', 'RTOS', 'ARM Cortex', 'Verilog'], [], []],
+    ['Vikram Rao', 'vikram@student.local', '2418005', 'CSE', 7.9, 2, '+91 95432 10987', ['JavaScript', 'React', 'TailwindCSS', 'Express'], [], []],
+    ['Sneha Kulkarni', 'sneha@student.local', '2418006', 'IT', 6.8, 1, '+91 94321 09876', ['Python', 'Django', 'SQL'], [], []],
+    ['Arjun Nair', 'arjun@student.local', '2418007', 'ME', 7.2, 0, '+91 93210 98765', ['SolidWorks', 'ANSYS', 'MATLAB', 'Python'], [], []],
+    ['Ishita Verma', 'ishita@student.local', '2418008', 'CSE', 9.4, 0, '+91 92109 87654', ['Rust', 'Distributed Systems', 'Go', 'Linux Internals'], [], []],
+    ['Rohan Gupta', 'rohan@student.local', '2418009', 'ECE', 6.5, 3, '+91 91098 76543', ['C', 'VLSI', 'Signal Processing'], [], []],
+    ['Meera Joshi', 'meera@student.local', '2418010', 'IT', 8.1, 0, '+91 90987 65432', ['UI/UX', 'Figma', 'React', 'GraphQL'], [], []],
+    ['Aditya Rao', 'aditya@student.local', '2418011', 'CSE', 7.4, 1, '+91 99876 54321', ['DevOps', 'CI/CD', 'Terraform', 'AWS'], [], []],
+    ['Pooja Reddy', 'pooja@student.local', '2418012', 'ECE', 8.9, 0, '+91 98765 12345', ['DSP', 'Embedded Systems', 'IoT', 'C++'], [], []],
   ];
   const studentIds = [];
-  for (const [name, email, roll, branch, cgpa, backlogs] of students) {
+  for (const [name, email, roll, branch, cgpa, backlogs, phone, skills, projects, certs] of students) {
     const id = await addUser(name, email, 'student');
     await conn.query(
-      'INSERT INTO students (user_id, roll_no, branch, cgpa, backlogs, graduation_year) VALUES (?, ?, ?, ?, ?, ?)',
-      [id, roll, branch, cgpa, backlogs, 2027]
+      `INSERT INTO students (user_id, roll_no, branch, cgpa, backlogs, graduation_year, phone, skills, projects, certifications)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        id,
+        roll,
+        branch,
+        cgpa,
+        backlogs,
+        2027,
+        phone || null,
+        skills ? JSON.stringify(skills) : null,
+        projects ? JSON.stringify(projects) : null,
+        certs ? JSON.stringify(certs) : null,
+      ]
     );
     studentIds.push(id);
   }
 
   // ---------- companies ----------
   const [c1] = await conn.query(
-    'INSERT INTO companies (name, website, sector) VALUES (?, ?, ?)',
-    ['TechCorp Solutions', 'techcorp.com', 'IT']
+    `INSERT INTO companies (name, website, sector, description, location, industry, hr_contact_email)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      'TechCorp Solutions',
+      'techcorp.com',
+      'IT',
+      'Global enterprise cloud infrastructure and intelligent developer tooling systems.',
+      'Bangalore, KA',
+      'Software & Cloud Infrastructure',
+      'talent@techcorp.com',
+    ]
   );
   const [c2] = await conn.query(
-    'INSERT INTO companies (name, website, sector) VALUES (?, ?, ?)',
-    ['FinServe Analytics', 'finserve.com', 'Finance']
+    `INSERT INTO companies (name, website, sector, description, location, industry, hr_contact_email)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      'FinServe Analytics',
+      'finserve.com',
+      'Finance',
+      'Next-generation algorithmic trading, quantitative risk management and retail banking systems.',
+      'Mumbai, MH',
+      'Financial Technology',
+      'careers@finserve.com',
+    ]
   );
+
+  // Link recruiters to companies
+  await conn.query('UPDATE users SET company_id = ? WHERE id = ?', [c1.insertId, priyaId]);
+  await conn.query('UPDATE users SET company_id = ? WHERE id = ?', [c2.insertId, rahulId]);
 
   // ---------- drives ----------
   const [d1] = await conn.query(
@@ -169,6 +235,27 @@ async function seed(conn) {
       sid,
       status,
     ]);
+  }
+
+  // ---------- offers ----------
+  // One demo offer for Aarav Sharma on Drive 1 (TechCorp Solutions)
+  const [aaravApp1] = await conn.query('SELECT id FROM applications WHERE drive_id = ? AND student_id = ?', [drive1, studentIds[0]]);
+  if (aaravApp1.length > 0) {
+    await conn.query(
+      `INSERT INTO offers (application_id, drive_id, student_id, company_id, package_lpa, joining_date, note, status, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        aaravApp1[0].id,
+        drive1,
+        studentIds[0],
+        c1.insertId,
+        18.50,
+        '2027-07-01',
+        'Congratulations! Based on your exceptional performance, TechCorp is pleased to extend an offer for the Software Development Engineer role.',
+        'offered',
+        priyaId,
+      ]
+    );
   }
 
   // ---------- test questions (drive 1 + drive 2 ship with a ready test) ----------

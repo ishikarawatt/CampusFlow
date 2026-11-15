@@ -17,28 +17,42 @@ CREATE TABLE users (
   email         VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   role          ENUM('student','recruiter','admin') NOT NULL,
+  company_id    INT NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- ------------------------------------------------------------- students --
 CREATE TABLE students (
-  user_id         INT PRIMARY KEY,
-  roll_no         VARCHAR(20) NOT NULL UNIQUE,
-  branch          VARCHAR(10) NOT NULL,          -- CSE, IT, ECE, ME ...
-  cgpa            DECIMAL(4,2) NOT NULL CHECK (cgpa BETWEEN 0 AND 10),
-  backlogs        INT NOT NULL DEFAULT 0 CHECK (backlogs >= 0),
-  graduation_year INT NOT NULL,
+  user_id              INT PRIMARY KEY,
+  roll_no              VARCHAR(20) NOT NULL UNIQUE,
+  branch               VARCHAR(10) NOT NULL,          -- CSE, IT, ECE, ME ...
+  cgpa                 DECIMAL(4,2) NOT NULL CHECK (cgpa BETWEEN 0 AND 10),
+  backlogs             INT NOT NULL DEFAULT 0 CHECK (backlogs >= 0),
+  graduation_year      INT NOT NULL,
+  phone                VARCHAR(20) NULL,
+  skills               JSON NULL,
+  projects             JSON NULL,
+  certifications       JSON NULL,
+  resume_path          VARCHAR(255) NULL,
+  resume_original_name VARCHAR(255) NULL,
+  resume_uploaded_at   DATETIME NULL,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_students_branch_cgpa (branch, cgpa)
 );
 
 -- ------------------------------------------------------------ companies --
 CREATE TABLE companies (
-  id      INT AUTO_INCREMENT PRIMARY KEY,
-  name    VARCHAR(120) NOT NULL,
-  website VARCHAR(200),
-  sector  VARCHAR(80)
+  id               INT AUTO_INCREMENT PRIMARY KEY,
+  name             VARCHAR(120) NOT NULL,
+  website          VARCHAR(200),
+  sector           VARCHAR(80),
+  description      TEXT NULL,
+  location         VARCHAR(120) NULL,
+  industry         VARCHAR(80) NULL,
+  hr_contact_email VARCHAR(255) NULL
 );
+
+ALTER TABLE users ADD CONSTRAINT fk_users_company FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE SET NULL;
 
 -- --------------------------------------------------------------- drives --
 -- A placement drive = a "job" submitted to the system.
@@ -74,12 +88,35 @@ CREATE TABLE applications (
   id         INT AUTO_INCREMENT PRIMARY KEY,
   drive_id   INT NOT NULL,
   student_id INT NOT NULL,                      -- FK -> students.user_id
-  status     ENUM('applied','test_taken','shortlisted','rejected','selected') NOT NULL DEFAULT 'applied',
+  status     ENUM('applied','test_taken','shortlisted','rejected','selected','withdrawn') NOT NULL DEFAULT 'applied',
   applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_application (drive_id, student_id),
   FOREIGN KEY (drive_id)   REFERENCES drives(id)   ON DELETE CASCADE,
   FOREIGN KEY (student_id) REFERENCES students(user_id) ON DELETE CASCADE,
   INDEX idx_applications_drive (drive_id, status)
+);
+
+-- --------------------------------------------------------------- offers --
+CREATE TABLE offers (
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  application_id INT NOT NULL UNIQUE,
+  drive_id       INT NOT NULL,
+  student_id     INT NOT NULL,
+  company_id     INT NOT NULL,
+  package_lpa    DECIMAL(6,2) NOT NULL CHECK (package_lpa > 0),
+  joining_date   DATE NULL,
+  note           VARCHAR(500) NULL,
+  status         ENUM('offered','accepted','declined','withdrawn') NOT NULL DEFAULT 'offered',
+  created_by     INT NOT NULL,
+  created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  responded_at   DATETIME NULL,
+  FOREIGN KEY (application_id) REFERENCES applications(id)  ON DELETE CASCADE,
+  FOREIGN KEY (drive_id)       REFERENCES drives(id)        ON DELETE CASCADE,
+  FOREIGN KEY (student_id)     REFERENCES students(user_id) ON DELETE CASCADE,
+  FOREIGN KEY (company_id)     REFERENCES companies(id)     ON DELETE CASCADE,
+  FOREIGN KEY (created_by)     REFERENCES users(id),
+  INDEX idx_offers_student_status (student_id, status),
+  INDEX idx_offers_drive (drive_id)
 );
 
 -- ------------------------------------------------------------ resources --
@@ -374,6 +411,18 @@ CREATE TRIGGER trg_exam_sessions_audit_au AFTER UPDATE ON exam_sessions FOR EACH
   INSERT INTO audit_log (action, entity, entity_id, details)
   VALUES ('UPDATE', 'exam_session', NEW.id,
           JSON_OBJECT('old_status', OLD.status, 'new_status', NEW.status, 'computer_id', NEW.computer_id));
+END$$
+
+CREATE TRIGGER trg_offers_audit_ai AFTER INSERT ON offers FOR EACH ROW BEGIN
+  INSERT INTO audit_log (action, entity, entity_id, details)
+  VALUES ('INSERT', 'offer', NEW.id,
+          JSON_OBJECT('application_id', NEW.application_id, 'student_id', NEW.student_id, 'drive_id', NEW.drive_id, 'package_lpa', NEW.package_lpa, 'status', NEW.status));
+END$$
+
+CREATE TRIGGER trg_offers_audit_au AFTER UPDATE ON offers FOR EACH ROW BEGIN
+  INSERT INTO audit_log (action, entity, entity_id, details)
+  VALUES ('UPDATE', 'offer', NEW.id,
+          JSON_OBJECT('old_status', OLD.status, 'new_status', NEW.status, 'application_id', NEW.application_id, 'student_id', NEW.student_id));
 END$$
 
 -- ============================================== STORED PROCEDURE: shortlist ==

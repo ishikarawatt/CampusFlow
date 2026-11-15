@@ -83,9 +83,14 @@
 body {
   background-color: var(--bg-app);
   color: var(--text-primary);
-  font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular numerals for data tables, statistics and counters */
+table, .font-tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Ensure dropdown options have crisp background and text in all themes */
