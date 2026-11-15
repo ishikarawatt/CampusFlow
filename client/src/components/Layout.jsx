@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../auth.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Badge from './Badge.jsx';
 import NotificationsBell from './NotificationsBell.jsx';
+import CommandPalette from './CommandPalette.jsx';
 import {
   Sun,
   Moon,
@@ -18,36 +19,66 @@ import {
   Calendar,
   Briefcase,
   PlusCircle,
-  ShieldAlert,
   MonitorCheck,
   Server,
   Activity,
-  Cpu,
   Boxes,
   FileBarChart,
   Users as UsersIcon,
+  Command,
 } from 'lucide-react';
 
-const NAV = {
+const NAV_GROUPS = {
   student: [
-    { to: '/student', label: 'Dashboard', end: true, icon: LayoutDashboard },
-    { to: '/student/drives', label: 'Find Drives', icon: Search },
-    { to: '/student/bookings', label: 'My Schedule', icon: Calendar },
+    {
+      group: 'Overview',
+      items: [{ to: '/student', label: 'Dashboard', end: true, icon: LayoutDashboard }],
+    },
+    {
+      group: 'Placement',
+      items: [
+        { to: '/student/drives', label: 'Find Drives', icon: Search },
+        { to: '/student/bookings', label: 'My Schedule', icon: Calendar },
+      ],
+    },
   ],
   recruiter: [
-    { to: '/recruiter', label: 'Dashboard', end: true, icon: LayoutDashboard },
-    { to: '/recruiter/drives', label: 'My Drives', icon: Briefcase },
-    { to: '/recruiter/drives/new', label: 'Add Drive', highlight: true, icon: PlusCircle },
+    {
+      group: 'Overview',
+      items: [{ to: '/recruiter', label: 'Dashboard', end: true, icon: LayoutDashboard }],
+    },
+    {
+      group: 'Recruitment Drives',
+      items: [
+        { to: '/recruiter/drives', label: 'My Drives', icon: Briefcase },
+        { to: '/recruiter/drives/new', label: 'Add Drive', highlight: true, icon: PlusCircle },
+      ],
+    },
   ],
   admin: [
-    { to: '/admin', label: 'Control Center', end: true, icon: LayoutDashboard },
-    { to: '/admin/monitoring', label: 'Exam Monitoring', icon: MonitorCheck },
-    { to: '/admin/exam-pcs', label: 'Exam PCs', icon: Server },
-    { to: '/admin/monitor', label: 'Live Monitor', icon: Activity },
-    { to: '/admin/scheduling', label: 'Interview Scheduler', icon: Calendar },
-    { to: '/admin/resources', label: 'Resources', icon: Boxes },
-    { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
-    { to: '/admin/users', label: 'Users', icon: UsersIcon },
+    {
+      group: 'Control',
+      items: [
+        { to: '/admin', label: 'Control Center', end: true, icon: LayoutDashboard },
+        { to: '/admin/monitoring', label: 'Exam Monitoring', icon: MonitorCheck },
+        { to: '/admin/exam-pcs', label: 'Exam PCs', icon: Server },
+      ],
+    },
+    {
+      group: 'Operations',
+      items: [
+        { to: '/admin/monitor', label: 'Live Monitor', icon: Activity },
+        { to: '/admin/scheduling', label: 'Interview Scheduler', icon: Calendar },
+        { to: '/admin/resources', label: 'Resources', icon: Boxes },
+      ],
+    },
+    {
+      group: 'Analytics & Management',
+      items: [
+        { to: '/admin/reports', label: 'Reports', icon: FileBarChart },
+        { to: '/admin/users', label: 'Users', icon: UsersIcon },
+      ],
+    },
   ],
 };
 
@@ -68,16 +99,6 @@ const TITLES = {
   '/admin/users': 'Users',
 };
 
-function LogoMark() {
-  return (
-    <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#101D29] via-[#1C3444] to-[#26BFD0] p-[1.5px] shrink-0 shadow-sm">
-      <div className="w-full h-full bg-[#101D29] rounded-[10px] flex items-center justify-center">
-        <span className="font-brand font-bold text-lg text-[#26BFD0]">C</span>
-      </div>
-    </div>
-  );
-}
-
 export default function Layout() {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
@@ -87,16 +108,29 @@ export default function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
   const role = user?.role ?? 'student';
-  const items = NAV[role] ?? NAV.student;
+  const groups = NAV_GROUPS[role] ?? NAV_GROUPS.student;
 
-  const title =
+  const currentTitle =
     TITLES[location.pathname] ??
     Object.entries(TITLES)
       .filter(([p]) => location.pathname.startsWith(p))
       .sort((a, b) => b[0].length - a[0].length)[0]?.[1] ??
     'CampusFlow';
+
+  // Keyboard shortcut listener for Ctrl+K or Cmd+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setPaletteOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const onLogout = () => {
     logout();
@@ -104,88 +138,117 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-[var(--color-bg)] text-[var(--color-text-primary)] transition-colors duration-200">
+    <div className="min-h-screen flex bg-[var(--bg-app)] text-[var(--text-primary)] transition-colors duration-200">
       {/* Mobile Drawer Backdrop */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-[#0B1F1A]/70 backdrop-blur-sm md:hidden"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar: Deep Midnight background with hairline borders */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[#101D29] text-white border-r border-[#1C3444] transition-all duration-200 ease-in-out md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[#0B1F1A] text-[#F7F3EA] border-r border-[#1C3A32] transition-all duration-200 ease-in-out md:translate-x-0 ${
           mobileOpen ? 'translate-x-0' : '-translate-x-full'
         } ${collapsed ? 'w-20' : 'w-64'}`}
       >
-        {/* Brand header */}
-        <div className="flex items-center justify-between px-5 h-20 border-b border-[#1C3444]">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <LogoMark />
+        {/* Brand Header */}
+        <div className="flex items-center justify-between px-5 h-20 border-b border-[#1C3A32]">
+          <Link to="/" className="flex items-center gap-3 overflow-hidden group">
+            <div className="w-9 h-9 rounded-[6px] border border-[#D9B36C]/40 bg-[#112923] flex items-center justify-center shrink-0">
+              <span className="font-serif font-bold text-lg text-[#D9B36C]">C</span>
+            </div>
             {!collapsed && (
               <div className="min-w-0">
-                <span className="font-brand font-bold text-lg tracking-tight text-white block truncate">
+                <span className="font-serif font-bold text-lg tracking-tight text-[#F7F3EA] block truncate">
                   CampusFlow
                 </span>
-                <span className="text-[11px] text-[#26BFD0] font-mono block -mt-0.5">
-                  OS v2.0
+                <span className="text-[10px] text-[#B9C7C1] font-mono tracking-widest uppercase block -mt-0.5">
+                  Placement OS
                 </span>
               </div>
             )}
-          </div>
-          {/* Close for mobile */}
+          </Link>
           <button
             onClick={() => setMobileOpen(false)}
-            className="md:hidden text-slate-400 hover:text-white p-1"
+            className="md:hidden text-[#B9C7C1] hover:text-[#F7F3EA] p-1"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Navigation Items */}
-        <nav className="flex-1 px-3 py-6 space-y-1.5 overflow-y-auto slim-scroll">
-          {items.map((it) => {
-            const Icon = it.icon;
-            return (
-              <NavLink
-                key={it.to}
-                to={it.to}
-                end={it.end}
-                onClick={() => setMobileOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
-                    it.highlight
-                      ? 'bg-[#26BFD0] text-[#101D29] font-semibold hover:bg-[#20a8b7] shadow-sm'
-                      : isActive
-                      ? 'bg-[#1C3444] text-[#26BFD0] shadow-inner font-semibold border-l-2 border-[#26BFD0]'
-                      : 'text-slate-300 hover:bg-[#1C3444]/60 hover:text-white'
-                  } ${collapsed ? 'justify-center px-0' : ''}`
-                }
-                title={collapsed ? it.label : undefined}
-              >
-                {Icon && <Icon className={`w-5 h-5 shrink-0 ${it.highlight ? 'text-[#101D29]' : ''}`} />}
-                {!collapsed && <span className="truncate">{it.label}</span>}
-              </NavLink>
-            );
-          })}
+        {/* Navigation Groups */}
+        <nav className="flex-1 px-3 py-5 space-y-6 overflow-y-auto slim-scroll">
+          {groups.map((grp, gIdx) => (
+            <div key={gIdx} className="space-y-1">
+              {!collapsed && (
+                <div className="px-3 pb-1.5 text-[10px] font-mono uppercase tracking-widest text-[#7E968F]">
+                  {grp.group}
+                </div>
+              )}
+              {grp.items.map((it) => {
+                const Icon = it.icon;
+                return (
+                  <NavLink
+                    key={it.to}
+                    to={it.to}
+                    end={it.end}
+                    onClick={() => setMobileOpen(false)}
+                    className={({ isActive }) =>
+                      `relative flex items-center gap-3 px-3 py-2.5 rounded-[6px] text-sm font-medium transition-colors ${
+                        it.highlight
+                          ? 'bg-[#D9B36C] text-[#0B1F1A] font-semibold hover:bg-[#E6C98A]'
+                          : isActive
+                          ? 'bg-[#112923] text-[#F7F3EA] font-semibold'
+                          : 'text-[#B9C7C1] hover:bg-[#112923]/60 hover:text-[#F7F3EA]'
+                      } ${collapsed ? 'justify-center px-0' : ''}`
+                    }
+                    title={collapsed ? it.label : undefined}
+                  >
+                    {({ isActive }) => (
+                      <>
+                        {/* Signature gold left-edge indicator on active nav item */}
+                        {isActive && !it.highlight && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-[#D9B36C] rounded-r" />
+                        )}
+                        <Icon className={`w-4 h-4 shrink-0 ${it.highlight ? 'text-[#0B1F1A]' : isActive ? 'text-[#D9B36C]' : ''}`} />
+                        {!collapsed && <span className="truncate">{it.label}</span>}
+                      </>
+                    )}
+                  </NavLink>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* Sidebar Footer */}
-        <div className="p-4 border-t border-[#1C3444] flex items-center justify-between">
+        {/* Sidebar Footer with Collapse Toggle */}
+        <div className="p-3.5 border-t border-[#1C3A32] flex items-center justify-between">
           {!collapsed ? (
-            <div className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-2 h-2 rounded-full bg-[#26BFD0] animate-pulse" />
-              <span className="font-mono text-[11px]">System Online</span>
-            </div>
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="flex items-center gap-2 text-xs text-[#B9C7C1] hover:text-[#F7F3EA] bg-[#112923] border border-[#1C3A32] px-2.5 py-1.5 rounded-[6px] transition-colors w-full justify-between"
+            >
+              <div className="flex items-center gap-1.5">
+                <Command className="w-3.5 h-3.5 text-[#D9B36C]" />
+                <span>Command menu</span>
+              </div>
+              <kbd className="text-[10px] font-mono opacity-60">⌘K</kbd>
+            </button>
           ) : (
-            <div className="mx-auto">
-              <span className="w-2.5 h-2.5 rounded-full bg-[#26BFD0] block" />
-            </div>
+            <button
+              onClick={() => setPaletteOpen(true)}
+              className="mx-auto text-[#B9C7C1] hover:text-[#F7F3EA] p-1.5 rounded-[6px] hover:bg-[#112923]"
+              title="Command Menu (Ctrl+K)"
+            >
+              <Command className="w-4 h-4 text-[#D9B36C]" />
+            </button>
           )}
+
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-white hover:bg-[#1C3444] transition-colors"
+            className="hidden md:flex items-center justify-center w-7 h-7 rounded-[6px] text-[#B9C7C1] hover:text-[#F7F3EA] hover:bg-[#112923] ml-2 shrink-0 transition-colors"
             title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -193,82 +256,102 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main Content Area */}
+      {/* Main Content Viewport */}
       <div
         className={`flex-1 flex flex-col min-h-screen transition-all duration-200 ${
           collapsed ? 'md:ml-20' : 'md:ml-64'
         }`}
       >
-        {/* Top Navbar */}
-        <header className="sticky top-0 z-30 bg-[var(--color-surface)]/95 backdrop-blur-md border-b border-[var(--color-border)] px-4 md:px-8 py-3.5 transition-colors duration-200">
+        {/* Top Bar */}
+        <header className="sticky top-0 z-30 bg-[var(--bg-surface)]/95 backdrop-blur-md border-b border-[var(--border-color)] px-4 md:px-8 py-3.5 transition-colors duration-200">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setMobileOpen(true)}
-                className="md:hidden p-2 rounded-xl border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
+                className="md:hidden p-2 rounded-[6px] border border-[var(--border-color)] text-[var(--text-muted)] hover:text-[var(--text-primary)]"
                 aria-label="Open navigation"
               >
                 <Menu className="w-5 h-5" />
               </button>
-              <h1 className="text-xl font-brand font-bold text-[var(--color-text-primary)] tracking-tight">
-                {title}
-              </h1>
+              <div>
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] font-mono">
+                  <span>Portal</span>
+                  <span>/</span>
+                  <span className="capitalize">{role}</span>
+                </div>
+                <h1 className="text-xl font-serif font-bold text-[var(--text-primary)] tracking-tight">
+                  {currentTitle}
+                </h1>
+              </div>
             </div>
 
-            {/* Topbar Actions */}
+            {/* Quick Actions & Profile */}
             <div className="flex items-center gap-2.5 md:gap-3">
-              {/* Theme Toggle Button */}
+              {/* Command Palette Trigger */}
+              <button
+                onClick={() => setPaletteOpen(true)}
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-xs text-[var(--text-muted)] hover:border-[var(--brand-accent)] hover:text-[var(--text-primary)] transition-colors"
+                title="Search commands (Ctrl+K)"
+              >
+                <Search className="w-3.5 h-3.5" />
+                <span>Search...</span>
+                <kbd className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-subtle)] border border-[var(--border-color)]">
+                  ⌘K
+                </kbd>
+              </button>
+
+              {/* Theme Toggle */}
               <button
                 onClick={toggleTheme}
-                className="w-10 h-10 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] flex items-center justify-center text-[var(--color-text-muted)] hover:text-[#26BFD0] hover:border-[#26BFD0]/40 transition-colors"
+                className="w-9 h-9 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--brand-accent)] hover:border-[var(--brand-accent)] transition-colors"
                 title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
                 aria-label="Toggle theme"
               >
-                {isDark ? <Sun className="w-4 h-4 text-[#26BFD0]" /> : <Moon className="w-4 h-4 text-slate-700" />}
+                {isDark ? <Sun className="w-4 h-4 text-[#D9B36C]" /> : <Moon className="w-4 h-4 text-[#0B1F1A]" />}
               </button>
 
-              {/* Notifications */}
+              {/* Notifications Bell */}
               <NotificationsBell />
 
               {/* Role Badge */}
               <div className="hidden sm:block">
-                <Badge variant={role === 'admin' ? 'danger' : role === 'recruiter' ? 'cyan' : 'success'}>
+                <Badge variant={role === 'admin' ? 'danger' : role === 'recruiter' ? 'gold' : 'success'}>
                   {role.toUpperCase()}
                 </Badge>
               </div>
 
-              {/* Profile Dropdown */}
+              {/* Profile Menu */}
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 p-1.5 rounded-xl border border-[var(--color-border)] hover:bg-[var(--color-bg)] transition-colors"
+                  className="flex items-center gap-2 p-1.5 rounded-[6px] border border-[var(--border-color)] hover:bg-[var(--bg-subtle)] transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-[#26BFD0]/10 text-[#26BFD0] flex items-center justify-center font-bold text-xs">
+                  <div className="w-7 h-7 rounded-[4px] bg-[#0F7B5F] text-[#F7F3EA] flex items-center justify-center font-bold text-xs">
                     {user?.name ? user.name.charAt(0).toUpperCase() : <UserIcon className="w-4 h-4" />}
                   </div>
-                  <span className="hidden lg:block text-sm font-medium text-[var(--color-text-primary)] pr-1">
+                  <span className="hidden lg:block text-xs font-semibold text-[var(--text-primary)] pr-1">
                     {user?.name ?? 'User'}
                   </span>
                 </button>
 
                 {profileOpen && (
                   <div
-                    className="absolute right-0 mt-2 w-48 bg-[var(--color-surface)] rounded-2xl border border-[var(--color-border)] shadow-xl py-1.5 z-50 cf-rise"
+                    className="absolute right-0 mt-2 w-52 bg-[var(--bg-surface)] rounded-[8px] border border-[var(--border-color)] shadow-xl py-1.5 z-50 cf-transition"
                     onMouseLeave={() => setProfileOpen(false)}
                   >
-                    <div className="px-4 py-2 border-b border-[var(--color-border)]">
-                      <p className="text-xs font-semibold text-[var(--color-text-primary)] truncate">
+                    <div className="px-4 py-2.5 border-b border-[var(--border-color)]">
+                      <p className="text-xs font-serif font-bold text-[var(--text-primary)] truncate">
                         {user?.name}
                       </p>
-                      <p className="text-[11px] text-[var(--color-text-muted)] truncate">
+                      <p className="text-[11px] text-[var(--text-muted)] font-mono truncate">
                         {user?.email}
                       </p>
                     </div>
                     <button
                       onClick={onLogout}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-rose-500 hover:bg-rose-500/10 transition-colors text-left font-medium"
+                      className="w-full flex items-center gap-2 px-4 py-2 text-xs text-[#9E3524] hover:bg-[#9E3524]/10 transition-colors text-left font-semibold"
                     >
-                      <LogOut className="w-4 h-4" />
+                      <LogOut className="w-3.5 h-3.5" />
                       Log out
                     </button>
                   </div>
@@ -278,11 +361,14 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Main Content Body */}
+        {/* Page Content Container with subtle Editorial layout */}
         <main className="flex-1 px-4 md:px-8 py-6 max-w-7xl w-full mx-auto">
           <Outlet />
         </main>
       </div>
+
+      {/* Command Palette Modal */}
+      <CommandPalette isOpen={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }
