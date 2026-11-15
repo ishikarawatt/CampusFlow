@@ -17,6 +17,7 @@ CREATE TABLE users (
   email         VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   role          ENUM('student','recruiter','admin') NOT NULL,
+  is_active     BOOLEAN NOT NULL DEFAULT 1,
   company_id    INT NULL,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -75,7 +76,10 @@ CREATE TABLE drives (
   num_interviewers     INT NOT NULL DEFAULT 2,
   min_test_score       DECIMAL(5,2) NOT NULL DEFAULT 50.00,  -- % needed to qualify
   max_shortlist        INT NOT NULL DEFAULT 20,              -- cap on interview shortlist
-  status               ENUM('draft','open','testing','interviews','closed') NOT NULL DEFAULT 'open',
+  status               ENUM('draft','open','testing','interviews','closed','pending_approval','approved','rejected') NOT NULL DEFAULT 'open',
+  approval_note VARCHAR(500) NULL,
+  reviewed_by INT NULL,
+  reviewed_at DATETIME NULL,
   created_by           INT NOT NULL,
   created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (company_id) REFERENCES companies(id),
