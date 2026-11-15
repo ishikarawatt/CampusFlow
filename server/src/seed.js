@@ -207,6 +207,13 @@ async function seed(conn) {
   const drive2 = d2.insertId;
   const drive3 = d3.insertId;
 
+  // ---------- drive_tests ----------
+  // Insert a drive_tests row for each demo drive (default status 'approved')
+  console.log('Inserting drive_tests...');
+await conn.query('INSERT INTO drive_tests (drive_id) VALUES (?)', [drive1]);
+  await conn.query('INSERT INTO drive_tests (drive_id) VALUES (?)', [drive2]);
+  await conn.query('INSERT INTO drive_tests (drive_id) VALUES (?)', [drive3]);
+
   // ---------- applications ----------
   // Drive 1: all 12 students applied (the eligibility engine will shortlist them).
   for (const sid of studentIds) {

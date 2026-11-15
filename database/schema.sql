@@ -202,7 +202,8 @@ CREATE TABLE test_questions (
   marks         INT NOT NULL DEFAULT 1,
   created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE CASCADE,
-  INDEX idx_tq_drive (drive_id);
+  INDEX idx_tq_drive (drive_id)
+);
 
 -- ------------------------------------------------------- drive_tests --
 -- Admin approval data for each drive's test
@@ -216,10 +217,8 @@ CREATE TABLE drive_tests (
   FOREIGN KEY (drive_id) REFERENCES drives(id) ON DELETE CASCADE
 );
 
--- Populate drive_tests for existing drives (seed will also do this)
-INSERT INTO drive_tests (drive_id)
-  SELECT id FROM drives;
-);
+
+
 
 -- --------------------------------------------------------- test_results --
 -- One row per student per drive: the auto-graded outcome.
@@ -481,3 +480,40 @@ JOIN companies c ON c.id = d.company_id
 LEFT JOIN applications a ON a.drive_id = d.id
 LEFT JOIN students s ON s.user_id = a.student_id
 GROUP BY d.id, d.title, c.name;
+
+-- Views added for reporting ( migrate_v10 )
+CREATE VIEW v_branch_placement AS
+SELECT s.branch,
+       COUNT(DISTINCT s.user_id) AS students,
+       COUNT(DISTINCT a.id) AS applied,
+       COUNT(DISTINCT o.id) AS placed,
+       IF(COUNT(DISTINCT a.id) = 0, 0,
+          ROUND(COUNT(DISTINCT o.id) / COUNT(DISTINCT a.id) * 100, 2)) AS placement_pct
+FROM students s
+LEFT JOIN applications a ON a.student_id = s.user_id
+LEFT JOIN offers o ON o.application_id = a.id AND o.status = 'accepted'
+GROUP BY s.branch;
+
+CREATE VIEW v_company_funnel AS
+SELECT c.id AS company_id,
+       c.name,
+       COUNT(DISTINCT d.id) AS drives,
+       COUNT(DISTINCT a.id) AS applicants,
+       COUNT(DISTINCT CASE WHEN a.status = 'shortlisted' THEN a.id END) AS shortlisted,
+       COUNT(DISTINCT CASE WHEN a.status = 'selected' THEN a.id END) AS selected,
+       COUNT(DISTINCT o.id) AS offers
+FROM companies c
+LEFT JOIN drives d ON d.company_id = c.id
+LEFT JOIN applications a ON a.drive_id = d.id
+LEFT JOIN offers o ON o.drive_id = d.id
+GROUP BY c.id, c.name;
+
+CREATE VIEW v_package_stats AS
+SELECT d.id AS drive_id,
+       d.title,
+       MIN(o.package_lpa) AS min_package,
+       MAX(o.package_lpa) AS max_package,
+       AVG(o.package_lpa) AS avg_package
+FROM drives d
+LEFT JOIN offers o ON o.drive_id = d.id
+GROUP BY d.id, d.title;

@@ -1,4 +1,4 @@
--- Migration v7: Add is_active to users, extend drives status enum and add review columns, create drive_tests table and populate it
+-- Migration v7: Add is_active, extend drives status, add drive_tests table and populate it
 
 -- 1. Add is_active to users
 ALTER TABLE users ADD COLUMN is_active BOOLEAN NOT NULL DEFAULT 1;
@@ -23,4 +23,3 @@ CREATE TABLE drive_tests (
 -- 4. Populate drive_tests for existing drives
 INSERT INTO drive_tests (drive_id)
   SELECT id FROM drives;
-

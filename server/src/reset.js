@@ -3,6 +3,7 @@
 const { main } = require('./seed');
 
 main().catch((err) => {
-  console.error('Reset failed:', err.message);
+  console.error('Reset failed:', err.stack);
+
   process.exit(1);
 });

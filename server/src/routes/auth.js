@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../dbms/db');
 const { authenticateToken } = require('../middleware/auth');
+const { validate } = require('../middleware/validate');
 
 const router = express.Router();
 
@@ -19,7 +20,7 @@ function publicUser(row) {
 }
 
 // POST /auth/register — public registration creates students only
-router.post('/register', async (req, res, next) => {
+router.post('/register', validate({required:['name','email','password','roll_no','branch','cgpa','graduation_year'], allowed:['name','email','password','roll_no','branch','cgpa','backlogs','graduation_year']}), async (req, res, next) => {
   try {
     const { name, email, password, roll_no, branch, cgpa, backlogs, graduation_year } =
       req.body || {};
@@ -73,7 +74,7 @@ router.post('/register', async (req, res, next) => {
 });
 
 // POST /auth/login
-router.post('/login', async (req, res, next) => {
+router.post('/login', validate({required:['email','password'], allowed:['email','password']}), async (req, res, next) => {
   try {
     const { email, password } = req.body || {};
     if (!email || !password) {

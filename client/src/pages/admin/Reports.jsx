@@ -43,21 +43,65 @@ function Funnel({ applied, shortlisted, selected }) {
 export default function Reports() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [rows, setRows] = useState([]);
+  const [branchRows, setBranchRows] = useState([]);
+  const [companyRows, setCompanyRows] = useState([]);
+  const [packageRows, setPackageRows] = useState([]);
 
+  // Load all extra reports in parallel
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await reportsApi.placement();
-        setRows(data ?? []);
+        const [{ data: br }, { data: co }, { data: pk }] = await Promise.all([
+          reportsApi.branches(),
+          reportsApi.companies(),
+          reportsApi.packages(),
+        ]);
+        setBranchRows(br ?? []);
+        setCompanyRows(co ?? []);
+        setPackageRows(pk ?? []);
       } catch (err) {
-        toast(errMsg(err, 'Could not load reports.'), 'error');
+        toast(errMsg(err, 'Could not load extra reports.'), 'error');
       } finally {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Aggregate totals for ledger strip
+  const totalStudents = branchRows.reduce((a, r) => a + Number(r.students || 0), 0);
+  const totalApplied = branchRows.reduce((a, r) => a + Number(r.applied || 0), 0);
+  const totalPlaced = branchRows.reduce((a, r) => a + Number(r.placed || 0), 0);
+
+  // Simple SVG bar chart for branch placement percentages
+  const BranchChart = () => (
+    <svg width="100%" height={branchRows.length * 30} style={{ overflow: 'visible' }}>
+      {branchRows.map((b, i) => (
+        <g key={b.branch} transform={`translate(0,${i * 30})`}>.
+          <text x={0} y={15} fontSize={12} fill="var(--text-primary)">{b.branch}</text>
+          <rect x={120} y={5} height={20} width={b.placement_pct * 3} fill="#4caf50" />
+          <text x={125 + b.placement_pct * 3} y={20} fontSize={12} fill="var(--text-muted)">{b.placement_pct}%</text>
+        </g>
+      ))}
+    </svg>
+  );
+
+  // CSV export handler
+  const downloadCsv = async (method) => {
+    try {
+      const res = await method();
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const disposition = res.headers['content-disposition'];
+      const filename = disposition?.split('filename=')[1]?.replace(/"/g, '') || 'export.csv';
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      toast(errMsg(err, 'CSV download failed.'), 'error');
+    }
+  };
 
   if (loading) {
     return (
@@ -68,85 +112,63 @@ export default function Reports() {
     );
   }
 
-  const totalApplied = rows.reduce((acc, r) => acc + Number(r.applied || 0), 0);
-  const totalShortlisted = rows.reduce((acc, r) => acc + Number(r.shortlisted || 0), 0);
-  const totalSelected = rows.reduce((acc, r) => acc + Number(r.selected || 0), 0);
-
   return (
     <div className="space-y-6">
       <PageHeader
         title="Placement Reports"
-        subtitle="Hiring funnel drop-off analytics and selection conversion metrics across campus drives."
-        breadcrumbs={[
-          { label: 'Admin', to: '/admin' },
-          { label: 'Reports' },
-        ]}
+        subtitle="Hiring funnel drop‑off analytics and new OS‑Lab views."
+        breadcrumbs={[{ label: 'Admin', to: '/admin' }, { label: 'Reports' }]}
       />
 
+      {/* Ledger strip */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Applications" value={totalApplied} icon={<Users className="w-5 h-5" />} />
-        <StatCard label="Total Shortlisted" value={totalShortlisted} icon={<CheckCircle2 className="w-5 h-5" />} />
-        <StatCard label="Placed Students" value={totalSelected} icon={<Award className="w-5 h-5" />} />
+        <StatCard label="Students" value={totalStudents} icon={<Users className="w-5 h-5" />} />
+        <StatCard label="Applied" value={totalApplied} icon={<FileBarChart className="w-5 h-5" />} />
+        <StatCard label="Placed" value={totalPlaced} icon={<Award className="w-5 h-5" />} />
       </div>
 
-      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border-color)]">
-          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
-            Drive Conversion Funnels
-          </h3>
-        </div>
+      {/* Branch placement chart */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-4">
+        <h3 className="font-serif font-bold text-base text-[var(--text-primary)] mb-2">Branch Placement %</h3>
+        <BranchChart />
+        <button className="mt-2 btn-primary" onClick={() => downloadCsv(reportsApi.branchesCsv)}>Export CSV</button>
+      </div>
 
-        {rows.length === 0 ? (
-          <EmptyState
-            title="No report data available"
-            message="Conversion metrics will compute as recruiters conduct assessments and record selections."
-          />
-        ) : (
-          <DataTable
-            columns={[
-              {
-                key: 'drive',
-                label: 'Drive & Partner Company',
-                render: (r) => (
-                  <div>
-                    <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
-                      {r.title}
-                    </span>
-                    <span className="block text-xs font-mono text-[var(--text-muted)]">
-                      {r.company}
-                    </span>
-                  </div>
-                ),
-              },
-              {
-                key: 'funnel',
-                label: 'Conversion Progression',
-                render: (r) => (
-                  <Funnel
-                    applied={Number(r.applied || 0)}
-                    shortlisted={Number(r.shortlisted || 0)}
-                    selected={Number(r.selected || 0)}
-                  />
-                ),
-              },
-              {
-                key: 'rate',
-                label: 'Selection Rate',
-                render: (r) => {
-                  const applied = Number(r.applied || 0);
-                  const selected = Number(r.selected || 0);
-                  const pct = applied > 0 ? (selected / applied) * 100 : 0;
-                  return (
-                    <span className="font-mono font-bold text-xs text-[#0F7B5F] dark:text-[#D9B36C]">
-                      {pct.toFixed(1)}%
-                    </span>
-                  );
-                },
-              },
-            ]}
-            rows={rows}
-          />
-        )}
+      {/* Companies funnel table */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">Company Funnel</h3>
+          <button className="btn-primary" onClick={() => downloadCsv(reportsApi.companiesCsv)}>Export CSV</button>
+        </div>
+        <DataTable
+          columns={[
+            { key: 'name', label: 'Company' },
+            { key: 'drives', label: 'Drives' },
+            { key: 'applicants', label: 'Applicants' },
+            { key: 'shortlisted', label: 'Shortlisted' },
+            { key: 'selected', label: 'Selected' },
+            { key: 'offers', label: 'Offers' },
+          ]}
+          rows={companyRows}
+        />
+      </div>
+
+      {/* Package stats table */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-4">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">Package Statistics</h3>
+          <button className="btn-primary" onClick={() => downloadCsv(reportsApi.packagesCsv)}>Export CSV</button>
+        </div>
+        <DataTable
+          columns={[
+            { key: 'drive_id', label: 'Drive ID' },
+            { key: 'title', label: 'Drive Title' },
+            { key: 'min_package', label: 'Min LPA' },
+            { key: 'max_package', label: 'Max LPA' },
+            { key: 'avg_package', label: 'Avg LPA' },
+          ]}
+          rows={packageRows}
+        />
       </div>
     </div>
   );

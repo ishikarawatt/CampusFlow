@@ -7,6 +7,8 @@ const crypto = require('crypto');
 const pool = require('../dbms/db');
 const { driveOverview, masterSchedule, driveRoster } = require('../dbms/reports');
 const { authenticateToken, requireRole } = require('../middleware/auth');
+const { withTransaction } = require('../dbms/transactions');
+const { notify } = require('../os/pipeline');
 const pcAllocator = require('../os/pc-allocator');
 const { emitAgentStatus, emitAgentEvent, emitSessionUpdate } = require('../socket');
 
@@ -419,4 +421,104 @@ router.delete('/prohibited-processes/:id', async (req, res, next) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Admin Drive Management Endpoints
+// ---------------------------------------------------------------------------
+
+// GET /api/admin/drives?status= — list drives, optional status filter, include company name
+router.get('/drives', async (req, res, next) => {
+  try {
+    const { status } = req.query;
+    let sql = `SELECT d.*, c.name AS company_name FROM drives d JOIN companies c ON c.id = d.company_id`;
+    const params = [];
+    if (status) {
+      sql += ' WHERE d.status = ?';
+      params.push(status);
+    }
+    const [rows] = await pool.query(sql, params);
+    res.json(rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/drives/:id/approve — approve a pending drive
+router.post('/drives/:id/approve', async (req, res, next) => {
+  try {
+    const driveId = Number(req.params.id);
+    await withTransaction(async (conn) => {
+      const [driveRows] = await conn.query('SELECT * FROM drives WHERE id = ? FOR UPDATE', [driveId]);
+      if (!driveRows.length) {
+        const e = new Error('Drive not found');
+        e.status = 404;
+        throw e;
+      }
+      const drive = driveRows[0];
+      if (drive.status !== 'pending_approval') {
+        const e = new Error('Drive not pending approval');
+        e.status = 409;
+        throw e;
+      }
+      const now = new Date();
+      await conn.query(
+        `UPDATE drives SET status = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?`,
+        ['approved', req.user.id, now, driveId]
+      );
+      // Notify all users of the drive's company
+      const [companyUsers] = await conn.query('SELECT id FROM users WHERE company_id = ?', [drive.company_id]);
+      for (const u of companyUsers) {
+        await notify(conn, u.id, 'Drive approved', `Drive "${drive.title}" has been approved.`, `/admin/drives/${driveId}`);
+      }
+    });
+    res.json({ id: driveId, status: 'approved' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/admin/drives/:id/reject — reject a pending drive with a note
+router.post('/drives/:id/reject', async (req, res, next) => {
+  try {
+    const driveId = Number(req.params.id);
+    const { note } = req.body;
+    if (!note || typeof note !== 'string') {
+      return res.status(400).json({ error: 'note is required and must be a string' });
+    }
+    await withTransaction(async (conn) => {
+      const [driveRows] = await conn.query('SELECT * FROM drives WHERE id = ? FOR UPDATE', [driveId]);
+      if (!driveRows.length) {
+        const e = new Error('Drive not found');
+        e.status = 404;
+        throw e;
+      }
+      const drive = driveRows[0];
+      if (drive.status !== 'pending_approval') {
+        const e = new Error('Drive not pending approval');
+        e.status = 409;
+        throw e;
+      }
+      const now = new Date();
+      await conn.query(
+        `UPDATE drives SET status = ?, approval_note = ?, reviewed_by = ?, reviewed_at = ? WHERE id = ?`,
+        ['rejected', note.trim(), req.user.id, now, driveId]
+      );
+      // Notify all users of the drive's company
+      const [companyUsers] = await conn.query('SELECT id FROM users WHERE company_id = ?', [drive.company_id]);
+      for (const u of companyUsers) {
+        await notify(conn, u.id, 'Drive rejected', `Drive "${drive.title}" was rejected: ${note.trim()}`, `/admin/drives/${driveId}`);
+      }
+    });
+    res.json({ id: driveId, status: 'rejected', note });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// End of admin routes
+// ---------------------------------------------------------------------------
+
+router.use('/os/schedule', require('./admin/os-schedule'));
+router.use('/os/race-demo', require('./admin/os-race-demo'));
 module.exports = router;
+

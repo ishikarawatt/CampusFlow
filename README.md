@@ -1,116 +1,187 @@
 # CampusFlow OS
 
-**The operating system for campus placements.** A complete placement pipeline — drives, aptitude
-tests, shortlisting and interviews — where the *system* does the scheduling and students just
-show up. Built with real OS concepts (locks, critical sections, scheduling, Banker's algorithm)
-running on a real database.
+**The operating system for campus placements.** A complete university recruitment pipeline—drives, aptitude tests, eligibility shortlisting, interview scheduling, and exam workstation control—where the *system* orchestrates the scheduling and students just show up. Built with real Operating System concepts (process synchronization, mutual exclusion, Banker's deadlock avoidance, CPU scheduling heuristics, Windows Session 0 agent monitoring, named pipes) running on an ACID-compliant MySQL 8 relational database.
 
-Built by a 4-member team for an undergraduate PBL evaluation (Operating Systems + DBMS).
+Built by a 4-member undergraduate team for a Capstone / Project-Based Learning evaluation (Operating Systems + Database Management Systems):
+- **Ishika Rawat (Lead):** OS 4 Deadlock Management, OS 8 Agent & Device Control, DBMS 1 Database Design & Schema Management, DBMS 2 Student & Company Management
+- **Akansha Parley:** OS 2 Queue Management, OS 7 Exam Environment Monitoring, DBMS 3 Placement Drive Management, DBMS 4 Eligibility & Application Management
+- **Trisha Dabral:** OS 1 Task Scheduling, OS 3 Process Synchronization, DBMS 7 Transactions & Concurrency Control, DBMS 8 Queries, Reports & Analytics
+- **Akshay Singh Gusain:** OS 5 Resource Allocation, OS 6 Resource Utilization, DBMS 5 Test & Interview Management, DBMS 6 Resource Management
 
----
-
-## ✨ Features implemented
-
-### 🎓 Student portal
-- **Find drives** — only drives matching your profile (CGPA, branch, backlogs, graduation year) are shown
-- **1-click apply** — eligibility is checked instantly, with reasons if you're not eligible
-- **My Applications** — every application as a visual progress tracker: Applied → Test → Result → Interview
-- **In-app aptitude test** — timed, one question at a time, auto-submits, instantly graded
-- **Auto-assigned sessions** — test venue/date/time and interview slot appear automatically; nothing to book
-- **Notifications bell** — test schedules, results and interview invites land in your inbox
-- **My Schedule** — all upcoming tests and interviews in one place
-
-### 💼 Recruiter portal
-- **Add Drive wizard** — 4 guided steps: drive details + eligibility → test questions builder → interview setup (number of interviewers, qualifying score, shortlist cap) → review with a live count of eligible students
-- **Drive dashboard** — pipeline tracker (Applications → Test → Results → Interviews) with funnel stats
-- **Schedule tests** (one click) — the system batches applicants into labs by capacity and notifies everyone
-- **Publish results** (one click) — shortlists by test score (cutoff + top-N cap) and auto-builds the full interview timetable across panels and rooms
-- **Eligible students, results leaderboard, final selection** — per-student views with test scores
-
-### 🛠️ Admin — Control Center
-- **All drives** — every drive's stage and progress (applied → tested → shortlisted) with one-click next steps
-- **Full schedule** — every test and interview session across all drives, with venues and seat counts
-- **Resources** — add labs (with seating capacity) and interview rooms; the auto-scheduler plans against this inventory. Allocations run the Banker's safety check that refuses unsafe allocations with an explanation
-- **System Monitor** — live view of lock acquisitions, queue waits and audit log as the system works
-- **Scheduling Lab** — interview scheduler simulation comparing FCFS vs. Non-preemptive Priority algorithms *(Note: Round Robin was intentionally removed because preemptive time-slicing is conceptually invalid for physical human interviews)*
-- **Reports** — placement progress per drive and per company via the `v_drive_report` database view
-- **Users** — directory of accounts with admin capability to create new recruiter and admin accounts
-
-### ⚙️ The pipeline engine & DBMS architecture
-- **Row-Level Mutual Exclusion**: Every seat booking enters a serialized database critical section using `SELECT … FOR UPDATE` inside a transaction.
-- **Deadlock Avoidance**: Resource allocations evaluate the Banker's Algorithm against available units and upcoming demands.
-- **CPU Scheduling**: Auto-scheduler orders interviews using Non-preemptive Priority (highest CGPA first) or FCFS (application order).
-- **Audit Triggers**: Database lifecycle mutations (`INSERT`/`UPDATE`/`DELETE` on `bookings`, `applications`, and `allocations`) write directly to `audit_log`.
-- **Stored Procedure Note**: The schema includes `sp_generate_shortlist`, a direct SQL stored procedure for criteria-based shortlisting (executable directly via MySQL: `CALL sp_generate_shortlist(drive_id, @count)`). The web application uses score-based test pipeline evaluation (`publishResults()` in `pipeline.js`).
+For the complete module distribution, code grounding, and member mappings, see **[docs/PROJECT_MAP.md](docs/PROJECT_MAP.md)**.
 
 ---
 
-## 🚀 Run it locally
+## 🏛️ System Architecture
 
-Detailed step-by-step instructions for Windows plain install and troubleshooting are in **[docs/03_INSTALLATION.md](docs/03_INSTALLATION.md)**.
+```mermaid
+graph TB
+    subgraph Client ["Client Layer"]
+        UI_Admin["Admin Control Center (/admin)"]
+        UI_Recruiter["Recruiter Dashboard (/recruiter)"]
+        UI_Student["Student Portal (/student)"]
+    end
 
-### Prerequisites
-- Node.js 18+ (`node --version`)
-- MySQL 8.0+ running locally on port 3306 (or via Docker as optional)
+    subgraph Server ["Server & Concurrency Engine (Node.js & Express)"]
+        API["Express REST API (Port 5000)"]
+        OS_Engine["OS Concurrency Modules (server/src/os/)<br/>• critical-section.js (Row Locks)<br/>• banker.js (Deadlock Avoidance)<br/>• pc-allocator.js (First & Best Fit)<br/>• cpu-scheduler.js (Scheduling Lab)"]
+        WS["Socket.IO Hub (Live Telemetry & Seats)"]
+        API --- OS_Engine
+        API --- WS
+    end
 
-### Quick Start
+    subgraph Database ["Storage Layer (MySQL 8 InnoDB)"]
+        DB[(campusflow Database)]
+        Triggers["Audit Triggers (audit_log)"]
+        Procedures["sp_generate_shortlist"]
+        Views["v_drive_report, v_company_funnel, etc."]
+        DB --- Triggers
+        DB --- Procedures
+        DB --- Views
+    end
 
-```bash
-# 1. Backend setup
-cd server
-cp .env.example .env
-# Edit .env: set DB_PASSWORD and a long random JWT_SECRET
-npm install
-npm run db:reset            # builds schema, triggers, seed data & records migrations
-npm run dev                 # API starts on http://localhost:5000/api
+    subgraph WindowsAgent ["Campus Workstation Agent (C++17)"]
+        Service["CampusFlowService.exe (Session 0 Service)"]
+        Monitor["CampusFlowMonitor.exe (Session 1 Desktop Monitor)"]
+        Pipe["Named Pipe (\\\\.\\pipe\\CampusFlow)"]
+        Monitor -->|Window Telemetry| Pipe
+        Pipe --> Service
+        Service -->|HTTPS REST Bearer Token| API
+    end
 
-# 2. Frontend setup (in a separate terminal)
-cd ../client
-npm install
-npm run dev                 # Client starts on http://localhost:5173
+    Client -->|REST API| API
+    WS -->|WebSocket Push| Client
+    Server -->|mysql2/promise Pool| DB
 ```
 
-*(Docker is optional: `docker compose up -d` can be used instead of a local MySQL install).*
+Detailed architectural diagrams, sequence diagrams, and design rationales are documented in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ---
 
-## 🔑 Demo logins (password: `password123`)
+## ✨ Features Grounded in Real Code
 
-| Role | Email | Lands on |
+### 🎓 Student Portal (`/student`)
+- **Profile Matching:** Explore drives filtered by CGPA, branch, backlogs, and graduation year (`server/src/dbms/eligibility.js`).
+- **1-Click Application:** Validated against criteria; transactions audited by `trg_applications_audit_ai`.
+- **Aptitude Testing:** In-app timed MCQ examination with server-side auto-grading (`server/src/os/pipeline.js`).
+- **Interview & Test Tracking:** View auto-allocated workstation seats and interview time slots.
+
+### 💼 Recruiter Portal (`/recruiter`)
+- **Add Drive Wizard:** 4-step wizard with live eligibility preview (`POST /drives/preview-eligibility`) using MySQL `JSON_CONTAINS`.
+- **Pipeline Tracker:** Track candidates across applied, test taken, shortlisted, and selected states.
+- **Batch Test Scheduling:** System allocates applicants into lab batches based on real capacity constraints.
+- **Interview Timetabling:** Automatic scheduling of shortlisted candidates across interview panels and rooms.
+
+### 🛠️ Admin Control Center (`/admin`)
+- **Exam Monitoring (`/admin/monitoring`):** Live terminal status grid receiving agent heartbeats, window focus loss, and blacklisted process alerts via Socket.IO.
+- **Live Kernel Monitor (`/admin/monitor`):** Real-time telemetry feed from `lock_events`, showing semaphore acquisitions, waits, and releases with an interactive stress test button.
+- **Scheduling Lab (`/admin/scheduling`):** Interactive OS scheduling simulation comparing FCFS, Priority, SJF, SRTF, and Round Robin algorithms with dynamic Gantt charts (`server/src/os/cpu-scheduler.js`).
+- **Resources & Labs (`/admin/resources`):** Physical lab and room inventory running Dijkstra's Banker's algorithm (`server/src/os/banker.js`) to reject unsafe allocation requests with HTTP 409.
+- **Analytics & Reports (`/admin/reports`):** Powered directly by database views (`v_drive_report`, `v_branch_placement`, `v_company_funnel`, `v_package_stats`).
+
+---
+
+## 🚀 Quick Start for Windows (Node.js + MySQL 8)
+
+For comprehensive setup, troubleshooting, and Linux/Docker alternatives, consult **[docs/03_INSTALLATION.md](docs/03_INSTALLATION.md)**.
+
+### 1. Prerequisites
+- **Node.js:** v18.0.0+ (`node --version`)
+- **MySQL Server:** v8.0+ running on port `3306` with InnoDB enabled
+
+### 2. Configure Backend
+```powershell
+cd c:\dev\CampusFlow\server
+copy .env.example .env
+# Edit .env to set your DB_PASSWORD and a 32+ character JWT_SECRET
+npm install
+npm run db:reset       # Recreates campusflow database, applies schema, runs seed
+npm run dev            # Starts backend API on http://localhost:5000/api
+```
+
+### 3. Configure Frontend (in a separate terminal)
+```powershell
+cd c:\dev\CampusFlow\client
+npm install
+npm run dev            # Starts Vite development server on http://localhost:5173
+```
+
+Open `http://localhost:5173` in your browser.
+
+---
+
+## 🔑 Demo Seed Accounts (Password: `password123`)
+
+| Role | Email | Portal Surface | Purpose |
+|---|---|---|---|
+| **Admin** | `admin@campusflow.local` | `/admin` | Full system control, Kernel Monitor, Lab allocations, Exam seat map |
+| **Recruiter** | `priya@techcorp.com` | `/recruiter` | Drive creation, Aptitude test setup, Shortlisting |
+| **Student** | `aarav@student.local` | `/student` | Profile, Drive application, MCQ test taking, Schedule |
+
+One-click demo login buttons are provided directly on the `/login` page.
+
+---
+
+## 📁 Repository Structure
+
+```text
+CampusFlow/
+├── client/                     # Vite + React SPA (Tailwind CSS)
+│   └── src/
+│       ├── pages/admin/        # KernelMonitor, ExamMonitoring, SchedulingLab, Resources
+│       ├── pages/recruiter/    # NewDriveWizard, RecruiterDashboard, MyDrives
+│       └── pages/student/      # StudentDashboard, Drives, TestTaker, StudentJourney
+├── database/                   # MySQL Schema, Migrations & Evidence
+│   ├── schema.sql              # Canonical 3NF DDL, Constraints, Triggers, Procedures, Views
+│   ├── migrate_v*.sql          # Versioned schema migrations
+│   └── demo/                   # Individual SQL viva evidence scripts
+│       ├── member1_ishika.sql
+│       ├── member2_akansha.sql
+│       ├── member3_trisha.sql
+│       └── member4_akshay.sql
+├── docs/                       # Grounded System Documentation & Manuals
+│   ├── PROJECT_MAP.md          # 16-module verified code mapping and ownership
+│   ├── OS_MANUAL.md            # 8 OS modules: Concepts, Code, Demos
+│   ├── DBMS_MANUAL.md          # 8 DBMS modules: Tables, ACID, Queries, Triggers
+│   ├── ER_DIAGRAM.md           # Mermaid erDiagram, 1NF/2NF/3NF notes, Schema catalog
+│   ├── ARCHITECTURE.md         # System architecture, sequence diagrams, design decisions
+│   ├── VIVA_GUIDE.md           # Member pitches, 40 Q&As, 20 hard defenses, live tasks
+│   ├── DEMO_SCRIPT.md          # 15-20 min choreographed viva script with wow moments
+│   ├── KNOWN_ISSUES.md         # Candid technical boundaries & scope disclosures
+│   └── 03_INSTALLATION.md      # Detailed installation and setup guide
+├── server/                     # Node.js Express REST API
+│   └── src/
+│       ├── os/                 # OS logic: banker.js, pc-allocator.js, cpu-scheduler.js, critical-section.js
+│       ├── dbms/               # DB connectivity (db.js), eligibility.js, transactions.js
+│       └── routes/             # admin/, agent.js, monitor.js, drives.js, resources.js
+└── windows-agent/              # C++17 Windows Monitoring Agent
+    ├── src/service/            # CampusFlowService.exe (Session 0 service)
+    ├── src/monitor/            # CampusFlowMonitor.exe (Session 1 desktop observer)
+    └── tools/mock-server.js    # In-memory mock server for cross-platform testing
+```
+
+---
+
+## 📜 Available Scripts
+
+| Directory | Command | Description |
 |---|---|---|
-| Admin | `admin@campusflow.local` | Control Center |
-| Recruiter | `priya@techcorp.com` | Hiring dashboard |
-| Student | `aarav@student.local` | My Applications |
-
-One-click demo buttons are provided on the login page.
-
----
-
-## 📚 Docs
-
-| Doc | What it covers |
-|---|---|
-| [docs/01_TEAM_CONTRIBUTIONS.md](docs/01_TEAM_CONTRIBUTIONS.md) | What each team member built |
-| [docs/02_PHASE2_PLAN.md](docs/02_PHASE2_PLAN.md) | Phase 2 stabilization and roadmap |
-| [docs/03_INSTALLATION.md](docs/03_INSTALLATION.md) | Complete installation & setup guide |
-| [docs/AUDIT_REPORT.md](docs/AUDIT_REPORT.md) | Phase 0 comprehensive codebase audit report |
-| [docs/PHASE2_VERIFICATION.md](docs/PHASE2_VERIFICATION.md) | Phase 2 stabilization test results & verification matrix |
-
-Older working documents are preserved in `docs/archive/`.
+| `server/` | `npm run dev` | Runs backend API server with nodemon |
+| `server/` | `npm run db:reset` | Drops and recreates database, applies schema and seeds fresh data |
+| `server/` | `npm run db:migrate` | Runs any pending versioned migration scripts |
+| `client/` | `npm run dev` | Starts Vite client dev server on port 5173 |
+| `client/` | `npm run build` | Compiles production assets into `client/dist/` |
+| `windows-agent/`| `build.bat` | Compiles C++ service and monitor using CMake / MSBuild |
 
 ---
 
-## 🛠️ Tech stack
+## 📖 Comprehensive Documentation Suite
 
-- **Frontend:** React 18 + Vite + Tailwind CSS, React Router DOM, Axios
-- **Backend:** Node.js + Express, JWT authentication, bcryptjs, mysql2
-- **Database:** MySQL 8 (InnoDB) — 3NF schema, declarative CHECK constraints, triggers, stored procedure, view
-
----
-
-## 👥 Team
-
-- **Ishika Rawat** (Lead) — M1 Platform Core & Data Foundation
-- **Akansha Parley** — M2 Drives, Eligibility & Interview Scheduling
-- **Trisha Dabral** — M3 Synchronization & Concurrency Control
-- **Akshay Singh Gusain** — M4 Resource Allocation & Control Center
+- **[Project Map (16 Modules)](docs/PROJECT_MAP.md)**: Authoritative ownership, file citations, and route mapping.
+- **[Operating Systems Manual](docs/OS_MANUAL.md)**: Deep dive into the 8 OS modules with exact code citations.
+- **[Database Management Manual](docs/DBMS_MANUAL.md)**: Deep dive into the 8 DBMS modules, ACID analysis, and triggers.
+- **[ER Diagram & Normalization](docs/ER_DIAGRAM.md)**: Full Mermaid ER model, normal form evaluations, and index catalogs.
+- **[System Architecture](docs/ARCHITECTURE.md)**: Flowcharts, sequence diagrams, and 14 code-backed design decisions.
+- **[Viva Voce Guide](docs/VIVA_GUIDE.md)**: 30-second pitches, 10 questions per member, hard defenses, and live tasks.
+- **[Master Demo Script](docs/DEMO_SCRIPT.md)**: 15–20 minute choreographed presentation with 4 "Wow Moments".
+- **[Known Issues & Disclosures](docs/KNOWN_ISSUES.md)**: Honest engineering disclosures on unbuilt and out-of-scope items.

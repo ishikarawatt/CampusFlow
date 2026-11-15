@@ -88,6 +88,11 @@ export const notifications = {
 
 // --- Admin control center ---
 export const admin = {
+  // OS Lab scheduling
+  osScheduleRun: (payload) => api.post('/os/schedule/run', payload),
+  osScheduleCompare: (payload) => api.post('/os/schedule/compare', payload),
+  // OS Lab race demo
+  raceDemo: (payload) => api.post('/os/race-demo', payload),
   overview: () => api.get('/admin/overview'),
   schedule: () => api.get('/admin/schedule'),
   roster: (driveId) => api.get(`/admin/drive/${driveId}/roster`),
@@ -133,6 +138,14 @@ export const monitor = {
 // --- Reports (M4) ---
 export const reports = {
   placement: () => api.get('/reports/placement'),
+  // new OS Lab extra reports
+  branches: () => api.get('/reports/branches'),
+  companies: () => api.get('/reports/companies'),
+  packages: () => api.get('/reports/packages'),
+  // CSV exports
+  branchesCsv: () => api.get('/reports/branches.csv', { responseType: 'blob' }),
+  companiesCsv: () => api.get('/reports/companies.csv', { responseType: 'blob' }),
+  packagesCsv: () => api.get('/reports/packages.csv', { responseType: 'blob' }),
 };
 
 // --- Companies (M2, used by the drive wizard) ---
