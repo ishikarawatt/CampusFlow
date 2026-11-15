@@ -30,3 +30,4 @@ export default function Skeleton({ className = '', variant = 'rect', lines = 1 }
     />
   );
 }
+
