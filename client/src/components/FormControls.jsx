@@ -11,7 +11,7 @@ export const Input = forwardRef(function Input(
       {label && (
         <label
           htmlFor={inputId}
-          className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5"
+          className="block text-[11px] font-mono font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1"
         >
           {label}
         </label>
@@ -19,15 +19,15 @@ export const Input = forwardRef(function Input(
       <input
         id={inputId}
         ref={ref}
-        className={`w-full rounded-xl border bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]/60 focus:outline-none focus:ring-2 focus:ring-[#26BFD0]/30 focus:border-[#26BFD0] transition-colors ${
-          error ? 'border-rose-500' : 'border-[var(--color-border)]'
+        className={`w-full rounded-[6px] border bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[#D9B36C] focus:ring-1 focus:ring-[#D9B36C] transition-colors ${
+          error ? 'border-[#9E3524]' : 'border-[var(--border-color)]'
         } ${className}`}
         {...props}
       />
       {error ? (
-        <p className="text-xs text-rose-500 mt-1 font-medium">{error}</p>
+        <p className="text-[11px] text-[#9E3524] mt-1 font-sans">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">{hint}</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1 font-sans">{hint}</p>
       ) : null}
     </div>
   );
@@ -44,7 +44,7 @@ export const Select = forwardRef(function Select(
       {label && (
         <label
           htmlFor={selectId}
-          className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5"
+          className="block text-[11px] font-mono font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1"
         >
           {label}
         </label>
@@ -52,17 +52,17 @@ export const Select = forwardRef(function Select(
       <select
         id={selectId}
         ref={ref}
-        className={`w-full rounded-xl border bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[#26BFD0]/30 focus:border-[#26BFD0] transition-colors ${
-          error ? 'border-rose-500' : 'border-[var(--color-border)]'
+        className={`w-full rounded-[6px] border bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C] focus:ring-1 focus:ring-[#D9B36C] transition-colors ${
+          error ? 'border-[#9E3524]' : 'border-[var(--border-color)]'
         } ${className}`}
         {...props}
       >
         {children}
       </select>
       {error ? (
-        <p className="text-xs text-rose-500 mt-1 font-medium">{error}</p>
+        <p className="text-[11px] text-[#9E3524] mt-1 font-sans">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">{hint}</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1 font-sans">{hint}</p>
       ) : null}
     </div>
   );
@@ -79,7 +79,7 @@ export const Textarea = forwardRef(function Textarea(
       {label && (
         <label
           htmlFor={textareaId}
-          className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5"
+          className="block text-[11px] font-mono font-medium uppercase tracking-wider text-[var(--text-muted)] mb-1"
         >
           {label}
         </label>
@@ -88,17 +88,16 @@ export const Textarea = forwardRef(function Textarea(
         id={textareaId}
         ref={ref}
         rows={rows}
-        className={`w-full rounded-xl border bg-[var(--color-surface)] px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)]/60 focus:outline-none focus:ring-2 focus:ring-[#26BFD0]/30 focus:border-[#26BFD0] transition-colors ${
-          error ? 'border-rose-500' : 'border-[var(--color-border)]'
+        className={`w-full rounded-[6px] border bg-[var(--bg-surface)] px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/50 focus:outline-none focus:border-[#D9B36C] focus:ring-1 focus:ring-[#D9B36C] transition-colors ${
+          error ? 'border-[#9E3524]' : 'border-[var(--border-color)]'
         } ${className}`}
         {...props}
       />
       {error ? (
-        <p className="text-xs text-rose-500 mt-1 font-medium">{error}</p>
+        <p className="text-[11px] text-[#9E3524] mt-1 font-sans">{error}</p>
       ) : hint ? (
-        <p className="text-xs text-[var(--color-text-muted)] mt-1">{hint}</p>
+        <p className="text-[11px] text-[var(--text-muted)] mt-1 font-sans">{hint}</p>
       ) : null}
     </div>
   );
 });
-

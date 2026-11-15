@@ -4,7 +4,7 @@ export default function Skeleton({ className = '', variant = 'rect', lines = 1 }
   if (variant === 'circle') {
     return (
       <div
-        className={`bg-[var(--color-border)] animate-pulse rounded-full shrink-0 ${className}`}
+        className={`bg-[var(--border-color)]/60 cf-shimmer rounded-full shrink-0 ${className}`}
       />
     );
   }
@@ -15,7 +15,7 @@ export default function Skeleton({ className = '', variant = 'rect', lines = 1 }
         {Array.from({ length: lines }).map((_, i) => (
           <div
             key={i}
-            className={`h-4 bg-[var(--color-border)] animate-pulse rounded-lg ${
+            className={`h-3.5 bg-[var(--border-color)]/60 cf-shimmer rounded-[4px] ${
               i === lines - 1 ? 'w-2/3' : 'w-full'
             }`}
           />
@@ -26,8 +26,7 @@ export default function Skeleton({ className = '', variant = 'rect', lines = 1 }
 
   return (
     <div
-      className={`bg-[var(--color-border)] animate-pulse rounded-xl ${className}`}
+      className={`bg-[var(--border-color)]/60 cf-shimmer rounded-[6px] ${className}`}
     />
   );
 }
-

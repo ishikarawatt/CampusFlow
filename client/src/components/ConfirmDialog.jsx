@@ -1,5 +1,6 @@
 import React from 'react';
 import Modal from './Modal';
+import Button from './Button';
 import { AlertTriangle } from 'lucide-react';
 
 export default function ConfirmDialog({
@@ -19,43 +20,38 @@ export default function ConfirmDialog({
     <Modal isOpen={isOpen} onClose={onClose} maxWidth="max-w-md" showClose={!loading}>
       <div className="flex items-start gap-4">
         <div
-          className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+          className={`w-9 h-9 rounded-[6px] flex items-center justify-center shrink-0 border ${
             isDanger
-              ? 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400 border border-rose-200 dark:border-rose-800'
-              : 'bg-[#26BFD0]/10 text-[#26BFD0] border border-[#26BFD0]/20'
+              ? 'bg-[#9E3524]/10 text-[#9E3524] border-[#9E3524]/30'
+              : 'bg-[#0F7B5F]/10 text-[#0F7B5F] border-[#0F7B5F]/30'
           }`}
         >
-          <AlertTriangle className="w-5 h-5" />
+          <AlertTriangle className="w-4 h-4" />
         </div>
         <div className="flex-1">
-          <h4 className="text-base font-semibold text-[var(--color-text-primary)]">{title}</h4>
-          <p className="text-sm text-[var(--color-text-muted)] mt-1.5 leading-relaxed">{message}</p>
+          <h4 className="text-base font-serif font-bold text-[var(--text-primary)]">{title}</h4>
+          <p className="text-xs text-[var(--text-muted)] mt-1.5 leading-relaxed font-sans">{message}</p>
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-end gap-3 pt-3 border-t border-[var(--color-border)]">
-        <button
-          type="button"
+      <div className="mt-6 flex items-center justify-end gap-2.5 pt-3 border-t border-[var(--border-color)]">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={onClose}
           disabled={loading}
-          className="px-4 py-2 rounded-xl text-sm font-semibold border border-[var(--color-border)] text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg)] transition-colors disabled:opacity-50"
         >
           {cancelText}
-        </button>
-        <button
-          type="button"
+        </Button>
+        <Button
+          variant={isDanger ? 'danger' : 'primary'}
+          size="sm"
           onClick={onConfirm}
-          disabled={loading}
-          className={`px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-sm disabled:opacity-50 ${
-            isDanger
-              ? 'bg-rose-600 hover:bg-rose-700'
-              : 'bg-[#26BFD0] hover:bg-[#20a8b7] text-[#101D29]'
-          }`}
+          loading={loading}
         >
-          {loading ? 'Processing...' : confirmText}
-        </button>
+          {confirmText}
+        </Button>
       </div>
     </Modal>
   );
 }
-
