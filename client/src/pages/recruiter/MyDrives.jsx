@@ -8,6 +8,7 @@ import { useToast } from '../../components/Toast.jsx';
 import Badge from '../../components/Badge.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
 
 const STAGE_VARIANT = { open: 'success', testing: 'info', interviews: 'warning', closed: 'neutral', draft: 'neutral' };
 
@@ -24,7 +25,20 @@ export default function MyDrives() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Loading…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-5 w-32" />
+          <Skeleton className="h-10 w-28 rounded-xl" />
+        </div>
+        <div className="cf-card !p-6 space-y-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-12 w-full" lines={4} />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

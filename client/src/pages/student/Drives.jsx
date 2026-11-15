@@ -8,6 +8,7 @@ import { formatDate } from '../../utils.js';
 import { useToast } from '../../components/Toast.jsx';
 import Badge from '../../components/Badge.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
 
 function DriveCard({ detail, index, onApplied }) {
   const { drive, eligibility, my_application, questions_count } = detail;
@@ -92,7 +93,17 @@ export default function Drives() {
     setItems((list) => list.map((d) => d.drive.id === driveId ? { ...d, my_application: { status: 'applied' } } : d));
   };
 
-  if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Finding drives for you…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-32 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Skeleton className="h-56 rounded-2xl" />
+          <Skeleton className="h-56 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

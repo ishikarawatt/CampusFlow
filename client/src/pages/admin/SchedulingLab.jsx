@@ -7,9 +7,11 @@ import { schedule as scheduleApi, drives as drivesApi, errMsg } from '../../api.
 import { useToast } from '../../components/Toast.jsx';
 import { formatDate } from '../../utils.js';
 import Badge from '../../components/Badge.jsx';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
 
-const inputCls = 'w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500';
-const labelCls = 'block text-xs font-medium text-slate-600 mb-1.5';
+const inputCls = 'w-full rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-primary)] px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#26BFD0]/30 focus:border-[#26BFD0]';
+const labelCls = 'block text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)] mb-1.5';
 
 const ALGOS = [
   { id: 'priority', label: 'Highest marks first', desc: 'The top CGPA interviews first' },
@@ -32,6 +34,8 @@ export default function SchedulingLab() {
   const [result, setResult] = useState(null);
   const [compare, setCompare] = useState(null);
   const [comparing, setComparing] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -112,15 +116,23 @@ export default function SchedulingLab() {
     }
   };
 
-  const startOver = async () => {
-    if (!driveId || !window.confirm('Delete this timetable and its lab booking? You can generate a new one after.')) return;
+  const startOver = () => {
+    if (!driveId) return;
+    setConfirmOpen(true);
+  };
+
+  const executeClear = async () => {
+    setClearing(true);
     try {
       await scheduleApi.clearAuto(driveId);
       setResult(null);
       setCompare(null);
       toast('Timetable cleared. Set your options and generate again.', 'success');
+      setConfirmOpen(false);
     } catch (err) {
       toast(errMsg(err, 'Could not clear the timetable.'), 'error');
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -289,6 +301,17 @@ export default function SchedulingLab() {
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        onConfirm={executeClear}
+        title="Clear Timetable?"
+        message="This will delete this timetable and its reserved lab booking. You can generate a new one immediately after."
+        confirmText="Delete & Clear"
+        loading={clearing}
+        variant="danger"
+      />
     </div>
   );
 }

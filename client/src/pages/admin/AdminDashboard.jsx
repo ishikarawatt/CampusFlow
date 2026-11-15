@@ -11,6 +11,7 @@ import { useToast } from '../../components/Toast.jsx';
 import Badge from '../../components/Badge.jsx';
 import DataTable from '../../components/DataTable.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
+import Skeleton from '../../components/Skeleton.jsx';
 
 const STAGE_META = {
   open: { label: 'Applications', variant: 'success' },
@@ -64,7 +65,19 @@ export default function AdminDashboard() {
     }
   };
 
-  if (loading) return <div className="text-sm text-slate-500 py-10 text-center">Loading control center…</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-2xl" />
+        <Skeleton className="h-48 rounded-2xl" />
+      </div>
+    );
+  }
 
   const totals = drives.reduce((m, d) => ({
     applied: m.applied + d.applied,
