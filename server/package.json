@@ -19,7 +19,7 @@
   "scripts": {
     "db:reset": "node src/reset.js",
     "db:seed": "node src/seed.js",
-    "dev": "node --watch src/index.js",
+    "dev": "node --watch --watch-path=src src/index.js",
     "start": "node src/index.js",
     "db:migrate": "node src/migrate.js"
   },

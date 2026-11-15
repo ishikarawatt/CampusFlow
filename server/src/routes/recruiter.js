@@ -536,3 +536,4 @@ router.post('/offers/:id/withdraw', authenticateToken, requireRole('recruiter', 
 });
 
 module.exports = router;
+

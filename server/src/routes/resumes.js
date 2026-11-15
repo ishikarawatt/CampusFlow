@@ -65,3 +65,4 @@ router.get('/:studentId', authenticateToken, async (req, res, next) => {
 });
 
 module.exports = router;
+
