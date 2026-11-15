@@ -60,6 +60,30 @@ async function getDrive(id) {
   return rows[0] || null;
 }
 
+async function assertDriveOwnership(req, driveId) {
+  const drive = await getDrive(driveId);
+  if (!drive) {
+    const err = new Error('Drive not found.');
+    err.status = 404;
+    throw err;
+  }
+  if (req.user && req.user.role === 'admin') {
+    return drive;
+  }
+  if (req.user && req.user.role === 'recruiter') {
+    const isOwned = (req.user.company_id && drive.company_id === req.user.company_id) || drive.created_by === req.user.id;
+    if (!isOwned) {
+      const err = new Error('You are not authorized to manage this drive.');
+      err.status = 403;
+      throw err;
+    }
+    return drive;
+  }
+  const err = new Error('Access denied.');
+  err.status = 403;
+  throw err;
+}
+
 function toDateOrNull(v) {
   if (!v) return null;
   const d = new Date(v);
@@ -284,10 +308,7 @@ router.get(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
-      const drive = await getDrive(req.params.id);
-      if (!drive) {
-        return res.status(404).json({ error: 'Drive not found.' });
-      }
+      const drive = await assertDriveOwnership(req, req.params.id);
       const [rows] = await pool.query(
         `SELECT a.id, a.status, a.applied_at,
                 u.id AS user_id, u.name, u.email,
@@ -328,10 +349,7 @@ router.get(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
-      const drive = await getDrive(req.params.id);
-      if (!drive) {
-        return res.status(404).json({ error: 'Drive not found.' });
-      }
+      const drive = await assertDriveOwnership(req, req.params.id);
       const eligible = await eligibleStudents(drive);
       res.json({ count: eligible.length, students: eligible.map((e) => e.student) });
     } catch (err) {
@@ -347,10 +365,7 @@ router.get(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
-      const drive = await getDrive(req.params.id);
-      if (!drive) {
-        return res.status(404).json({ error: 'Drive not found.' });
-      }
+      const drive = await assertDriveOwnership(req, req.params.id);
       const [[a]] = await pool.query(
         `SELECT COUNT(*) AS applied,
                 SUM(status = 'test_taken') AS taken,
@@ -399,6 +414,7 @@ router.post(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
+      await assertDriveOwnership(req, req.params.id);
       const result = await scheduleTestSessions(req.params.id, req.user.id);
       res.json(result);
     } catch (err) {
@@ -414,6 +430,7 @@ router.post(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
+      await assertDriveOwnership(req, req.params.id);
       const result = await publishResults(req.params.id, req.user.id);
       res.json(result);
     } catch (err) {
@@ -429,6 +446,7 @@ router.post(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
+      await assertDriveOwnership(req, req.params.id);
       const { student_id } = req.body || {};
       if (!student_id) return res.status(400).json({ error: 'student_id is required.' });
       const [r] = await pool.query(
@@ -467,8 +485,7 @@ router.post(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
-      const drive = await getDrive(req.params.id);
-      if (!drive) return res.status(404).json({ error: 'Drive not found.' });
+      const drive = await assertDriveOwnership(req, req.params.id);
       if (!['open', 'draft'].includes(drive.status)) {
         return res.status(400).json({ error: 'Questions can only be edited before test sessions are scheduled.' });
       }
@@ -492,6 +509,7 @@ router.get(
   requireRole('recruiter', 'admin'),
   async (req, res, next) => {
     try {
+      await assertDriveOwnership(req, req.params.id);
       const [rows] = await pool.query(
         'SELECT id, question_text, options, correct_index, marks FROM test_questions WHERE drive_id = ? ORDER BY id',
         [req.params.id]
@@ -573,3 +591,5 @@ router.post(
 );
 
 module.exports = router;
+module.exports.getDrive = getDrive;
+module.exports.assertDriveOwnership = assertDriveOwnership;

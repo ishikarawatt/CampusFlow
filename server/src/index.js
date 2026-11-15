@@ -38,6 +38,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/student', require('./routes/student'));
 app.use('/api/resumes', require('./routes/resumes'));
+app.use('/api/recruiter', require('./routes/recruiter'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/agent', agentRouter);
