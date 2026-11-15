@@ -151,23 +151,13 @@ export default function Resources() {
       />
 
       {/* KPI Ribbon */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard
-          label="Computer Labs"
-          value={grouped.lab?.length ?? 0}
-          icon={<Boxes className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Total Test Seats"
-          value={labSeats}
-          icon={<Building2 className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Interview Rooms"
-          value={grouped.room?.length ?? 0}
-          icon={<Boxes className="w-5 h-5" />}
-        />
-      </div>
+      <LedgerStrip
+        items={[
+          { label: 'Computer labs', value: grouped.lab?.length ?? 0 },
+          { label: 'Total test seats', value: labSeats, unit: 'seats' },
+          { label: 'Interview rooms', value: grouped.room?.length ?? 0 },
+        ]}
+      />
 
       {/* New Resource Form Modal / Inline */}
       {showAdd && (
@@ -243,10 +233,10 @@ export default function Resources() {
             Active Inventory Pool
           </h3>
         </div>
-        <DataTable
+        <LedgerTable
           columns={[
             {
-              key: 'name',
+              header: 'Resource Name',
               label: 'Resource Name',
               render: (r) => (
                 <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
@@ -258,9 +248,9 @@ export default function Resources() {
               key: 'type',
               label: 'Classification',
               render: (r) => (
-                <Badge variant={TYPE_BADGE[r.type] ?? 'neutral'}>
-                  {titleCase(r.type)}
-                </Badge>
+                <StampBadge size="sm" variant={TYPE_BADGE[r.type] ?? 'neutral'}>{titleCase(r.type)}</StampBadge>
+
+
               ),
             },
             {
@@ -282,7 +272,7 @@ export default function Resources() {
               ),
             },
           ]}
-          rows={resources}
+          data={resources}
         />
       </div>
 
