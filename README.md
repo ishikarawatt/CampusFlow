@@ -1,6 +1,6 @@
 # CampusFlow OS
 
-**The operating system for campus placements.** A complete university recruitment pipeline—drives, aptitude tests, eligibility shortlisting, interview scheduling, and exam workstation control—where the *system* orchestrates the scheduling and students just show up. Built with real Operating System concepts (process synchronization, mutual exclusion, Banker's deadlock avoidance, CPU scheduling heuristics, Windows Session 0 agent monitoring, named pipes) running on an ACID-compliant MySQL 8 relational database.
+**The operating system for campus placements.** A complete university recruitment pipeline—drives, aptitude tests, eligibility shortlisting, interview scheduling, and exam workstation control—will be presented as a real-world OS + DBMS project. It simulates how university placement systems coordinate students, recruiters, resources, and exam monitoring without manual chaos.
 
 Built by a 4-member undergraduate team for a Capstone / Project-Based Learning evaluation (Operating Systems + Database Management Systems):
 - **Ishika Rawat (Lead):** OS 4 Deadlock Management, OS 8 Agent & Device Control, DBMS 1 Database Design & Schema Management, DBMS 2 Student & Company Management
@@ -24,7 +24,7 @@ graph TB
 
     subgraph Server ["Server & Concurrency Engine (Node.js & Express)"]
         API["Express REST API (Port 5000)"]
-        OS_Engine["OS Concurrency Modules (server/src/os/)<br/>• critical-section.js (Row Locks)<br/>• banker.js (Deadlock Avoidance)<br/>• pc-allocator.js (First & Best Fit)<br/>• cpu-scheduler.js (Scheduling Lab)"]
+        OS_Engine["OS Concurrency Modules (server/src/os/)<br/>• critical-section.js (Row Locks)<br/>• banker.js (Deadlock Avoidance)<br/>• pc-allocator.js (First & Best Fit)<br/>• cpu-scheduler.js (Scheduling)"]
         WS["Socket.IO Hub (Live Telemetry & Seats)"]
         API --- OS_Engine
         API --- WS
@@ -53,6 +53,192 @@ graph TB
     WS -->|WebSocket Push| Client
     Server -->|mysql2/promise Pool| DB
 ```
+
+## 🧩 Entity Relationship Diagram
+
+The core database model behind CampusFlow is modeled as a placement system with identity, recruitment lifecycle, resource scheduling, and exam monitoring flows. This ER model reflects the schema in `database/schema.sql` and the live functionality implemented across the application.
+
+```mermaid
+erDiagram
+    USERS ||--o| STUDENTS : "profiles"
+    USERS ||--o{ DRIVES : "creates"
+    USERS ||--o{ APPLICATIONS : "submits"
+    USERS ||--o{ OFFERS : "approves"
+    USERS ||--o{ NOTIFICATIONS : "receives"
+    USERS ||--o{ PROHIBITED_PROCESSES : "defines"
+    USERS ||--o{ MONITORING_EVENTS : "reviews"
+    USERS ||--o{ AUDIT_LOG : "acts_on"
+
+    COMPANIES ||--o{ USERS : "employs"
+    COMPANIES ||--o{ DRIVES : "hosts"
+    COMPANIES ||--o{ OFFERS : "offers_via"
+
+    STUDENTS ||--o{ APPLICATIONS : "applies_to"
+    STUDENTS ||--o{ BOOKINGS : "books"
+    STUDENTS ||--o{ TEST_RESULTS : "scores"
+    STUDENTS ||--o{ EXAM_SESSIONS : "attempts"
+    STUDENTS ||--o{ OFFERS : "receives"
+
+    DRIVES ||--o{ APPLICATIONS : "receives"
+    DRIVES ||--o{ SLOTS : "contains"
+    DRIVES ||--o{ TEST_QUESTIONS : "includes"
+    DRIVES ||--o{ TEST_RESULTS : "evaluates"
+    DRIVES ||--o{ EXAM_SESSIONS : "tracks"
+    DRIVES ||--o| DRIVE_TESTS : "configures"
+
+    APPLICATIONS ||--o| OFFERS : "may_become"
+
+    RESOURCES ||--o{ SLOTS : "hosts"
+    RESOURCES ||--o{ ALLOCATIONS : "allocates"
+    RESOURCES ||--o{ COMPUTERS : "contains"
+
+    SLOTS ||--o{ BOOKINGS : "fills"
+    SLOTS ||--o{ ALLOCATIONS : "schedules"
+
+    COMPUTERS ||--o| AGENT_DEVICES : "registers"
+    COMPUTERS ||--o{ EXAM_SESSIONS : "hosts"
+    COMPUTERS ||--o{ MONITORING_EVENTS : "emits"
+
+    EXAM_SESSIONS ||--o{ MONITORING_EVENTS : "captures"
+
+    USERS {
+        int id PK
+        varchar name
+        varchar email UK
+        enum role
+        int company_id FK
+    }
+
+    STUDENTS {
+        int user_id PK,FK
+        varchar roll_no UK
+        varchar branch
+        decimal cgpa
+        int backlogs
+        int graduation_year
+    }
+
+    COMPANIES {
+        int id PK
+        varchar name
+        varchar website
+        varchar sector
+    }
+
+    DRIVES {
+        int id PK
+        int company_id FK
+        varchar title
+        decimal min_cgpa
+        json allowed_branches
+        datetime application_deadline
+        enum status
+    }
+
+    APPLICATIONS {
+        int id PK
+        int drive_id FK
+        int student_id FK
+        enum status
+    }
+
+    OFFERS {
+        int id PK
+        int application_id FK
+        int drive_id FK
+        int student_id FK
+        decimal package_lpa
+        enum status
+    }
+
+    RESOURCES {
+        int id PK
+        varchar name
+        enum type
+        int capacity
+        enum status
+    }
+
+    SLOTS {
+        int id PK
+        int drive_id FK
+        int resource_id FK
+        enum type
+        datetime starts_at
+        datetime ends_at
+        int capacity
+    }
+
+    BOOKINGS {
+        int id PK
+        int slot_id FK
+        int student_id FK
+        enum status
+    }
+
+    ALLOCATIONS {
+        int id PK
+        int resource_id FK
+        int slot_id FK
+        varchar purpose
+        int seats_needed
+    }
+
+    COMPUTERS {
+        int id PK
+        int resource_id FK
+        varchar pc_code UK
+        enum status
+    }
+
+    EXAM_SESSIONS {
+        int id PK
+        int computer_id FK
+        int student_id FK
+        int drive_id FK
+        enum status
+    }
+
+    MONITORING_EVENTS {
+        bigint id PK
+        int exam_session_id FK
+        int computer_id FK
+        enum event_type
+        datetime occurred_at
+    }
+
+    TEST_QUESTIONS {
+        int id PK
+        int drive_id FK
+        text question_text
+        json options
+    }
+
+    TEST_RESULTS {
+        int id PK
+        int drive_id FK
+        int student_id FK
+        decimal score
+        decimal percentage
+    }
+
+    NOTIFICATIONS {
+        int id PK
+        int user_id FK
+        varchar title
+        text body
+    }
+
+    AUDIT_LOG {
+        bigint id PK
+        int actor_id FK
+        varchar action
+        varchar entity
+        json details
+    }
+```
+
+This ER diagram shows the system at a glance: users and students form the identity layer, drives and applications form the recruitment lifecycle, resources and slots form the scheduling layer, and exam sessions plus monitoring events capture the live proctoring workflow.
 
 Detailed architectural diagrams, sequence diagrams, and design rationales are documented in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
@@ -182,4 +368,6 @@ CampusFlow/
 - **[Database Management Manual](docs/DBMS_MANUAL.md)**: Deep dive into the 8 DBMS modules, ACID analysis, and triggers.
 - **[ER Diagram & Normalization](docs/ER_DIAGRAM.md)**: Full Mermaid ER model, normal form evaluations, and index catalogs.
 - **[System Architecture](docs/ARCHITECTURE.md)**: Flowcharts, sequence diagrams, and 14 code-backed design decisions.
-
+- **[Viva Voce Guide](docs/VIVA_GUIDE.md)**: 30-second pitches, 10 questions per member, hard defenses, and live tasks.
+- **[Master Demo Script](docs/DEMO_SCRIPT.md)**: 15–20 minute choreographed presentation with 4 "Wow Moments".
+- **[Known Issues & Disclosures](docs/KNOWN_ISSUES.md)**: Honest engineering disclosures on unbuilt and out-of-scope items.
