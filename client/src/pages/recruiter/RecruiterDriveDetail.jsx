@@ -1,20 +1,37 @@
-// Recruiter Drive Detail — Complete tabbed workspace (Overview, Eligibility, Applicants, Test, Interviews, Results).
+// Recruiter Drive Detail — Complete tabbed workspace (Overview, Eligibility, Applicants with bulk actions & resume links, Test, Interviews, Offers & Results).
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { drives as drivesApi, errMsg } from '../../api.js';
+import { drives as drivesApi, recruiter as recruiterApi, errMsg } from '../../api.js';
 import { formatDate } from '../../utils.js';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Badge from '../../components/Badge.jsx';
-import DataTable from '../../components/DataTable.jsx';
 import Stepper from '../../components/Stepper.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
 import Button from '../../components/Button.jsx';
 import StatCard from '../../components/StatCard.jsx';
 import FilterBar from '../../components/FilterBar.jsx';
-import { Calendar, Users, Award, CheckCircle2, Clock, FileText } from 'lucide-react';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
+import Modal from '../../components/Modal.jsx';
+import Pagination from '../../components/Pagination.jsx';
+import {
+  Calendar,
+  Users,
+  Award,
+  CheckCircle2,
+  Clock,
+  FileText,
+  ExternalLink,
+  CheckSquare,
+  Square,
+  PlusCircle,
+  AlertCircle,
+  DollarSign,
+  Ban,
+  RefreshCw,
+} from 'lucide-react';
 
 const STAGE_META = {
   open: { label: 'Accepting Applications', variant: 'success' },
@@ -30,42 +47,125 @@ const STATUS_VARIANT = {
   shortlisted: 'success',
   rejected: 'danger',
   selected: 'success',
+  withdrawn: 'neutral',
 };
 
 export default function RecruiterDriveDetail() {
   const { id } = useParams();
   const { toast } = useToast();
+
   const [loading, setLoading] = useState(true);
   const [drive, setDrive] = useState(null);
   const [pipeline, setPipeline] = useState(null);
-  const [apps, setApps] = useState([]);
   const [tab, setTab] = useState('overview');
   const [busy, setBusy] = useState(null);
-  const [search, setSearch] = useState('');
 
-  const load = async () => {
+  // Applicants Tab State
+  const [applicants, setApplicants] = useState([]);
+  const [applicantsLoading, setApplicantsLoading] = useState(false);
+  const [applicantTotal, setApplicantTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('applied_desc');
+  const [selectedAppIds, setSelectedAppIds] = useState([]);
+
+  // Offers Tab State
+  const [offers, setOffers] = useState([]);
+  const [offersLoading, setOffersLoading] = useState(false);
+  const [extendOfferModalOpen, setExtendOfferModalOpen] = useState(false);
+  const [offerForm, setOfferForm] = useState({
+    application_id: '',
+    package_lpa: '',
+    joining_date: '',
+    note: '',
+  });
+
+  // Dialog States
+  const [bulkActionTarget, setBulkActionTarget] = useState(null); // 'shortlist' | 'reject'
+  const [withdrawOfferTarget, setWithdrawOfferTarget] = useState(null); // offer object
+  const [scheduleConfirmOpen, setScheduleConfirmOpen] = useState(false);
+  const [publishConfirmOpen, setPublishConfirmOpen] = useState(false);
+
+  // -------------------------------------------------------------------------
+  // Fetch Drive & Pipeline Details
+  // -------------------------------------------------------------------------
+  const loadDrive = async () => {
     try {
-      const [{ data: d }, { data: p }, { data: a }] = await Promise.all([
+      setLoading(true);
+      const [{ data: d }, { data: p }] = await Promise.all([
         drivesApi.get(id),
-        drivesApi.pipeline(id),
-        drivesApi.applications(id),
+        drivesApi.pipeline(id).catch(() => ({ data: null })),
       ]);
       setDrive(d.drive ?? d);
       setPipeline(p);
-      setApps(a ?? []);
     } catch (err) {
-      toast(errMsg(err, 'Could not load this drive.'), 'error');
+      toast(errMsg(err, 'Could not load this placement drive.'), 'danger');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load();
+    loadDrive();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const scheduleTests = async () => {
+  // -------------------------------------------------------------------------
+  // Fetch Paginated Applicants
+  // -------------------------------------------------------------------------
+  const fetchApplicants = useCallback(async () => {
+    try {
+      setApplicantsLoading(true);
+      const res = await recruiterApi.getApplicants(id, {
+        page,
+        limit: pageSize,
+        search: search.trim() || undefined,
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        sort: sortBy,
+      });
+      setApplicants(res.data?.applicants ?? []);
+      setApplicantTotal(res.data?.total ?? 0);
+      setSelectedAppIds([]);
+    } catch (err) {
+      toast(errMsg(err, 'Could not fetch applicants list.'), 'danger');
+    } finally {
+      setApplicantsLoading(false);
+    }
+  }, [id, page, pageSize, search, statusFilter, sortBy, toast]);
+
+  useEffect(() => {
+    if (tab === 'applicants') {
+      fetchApplicants();
+    }
+  }, [tab, fetchApplicants]);
+
+  // -------------------------------------------------------------------------
+  // Fetch Offers
+  // -------------------------------------------------------------------------
+  const fetchOffers = useCallback(async () => {
+    try {
+      setOffersLoading(true);
+      const res = await recruiterApi.getOffers(id);
+      setOffers(res.data?.offers ?? []);
+    } catch (err) {
+      toast(errMsg(err, 'Could not load drive offers.'), 'danger');
+    } finally {
+      setOffersLoading(false);
+    }
+  }, [id, toast]);
+
+  useEffect(() => {
+    if (tab === 'results' || tab === 'offers') {
+      fetchOffers();
+    }
+  }, [tab, fetchOffers]);
+
+  // -------------------------------------------------------------------------
+  // Pipeline Actions
+  // -------------------------------------------------------------------------
+  const handleScheduleTests = async () => {
     setBusy('tests');
     try {
       const { data } = await drivesApi.scheduleTests(id);
@@ -73,38 +173,112 @@ export default function RecruiterDriveDetail() {
         `Scheduled ${data.sessions} test session${data.sessions !== 1 ? 's' : ''} for ${data.assigned} students.`,
         'success'
       );
-      load();
+      setScheduleConfirmOpen(false);
+      loadDrive();
     } catch (err) {
-      toast(errMsg(err, 'Could not schedule tests.'), 'error');
+      toast(errMsg(err, 'Could not schedule tests.'), 'danger');
     } finally {
       setBusy(null);
     }
   };
 
-  const publishResults = async () => {
+  const handlePublishResults = async () => {
     setBusy('results');
     try {
       const { data } = await drivesApi.publishResults(id);
       toast(
-        `Shortlisted ${data.shortlisted} students and built ${data.interviews} interview slots.`,
+        `Shortlisted ${data.shortlisted} students and generated ${data.interviews} interview slots.`,
         'success'
       );
-      load();
+      setPublishConfirmOpen(false);
+      loadDrive();
     } catch (err) {
-      toast(errMsg(err, 'Could not publish results.'), 'error');
+      toast(errMsg(err, 'Could not publish results.'), 'danger');
     } finally {
       setBusy(null);
     }
   };
 
-  const markSelected = async (studentId, name) => {
+  // -------------------------------------------------------------------------
+  // Bulk Applicant Actions
+  // -------------------------------------------------------------------------
+  const handleBulkActionConfirm = async () => {
+    if (!bulkActionTarget || selectedAppIds.length === 0) return;
     try {
-      await drivesApi.markSelected(id, studentId);
-      toast(`${name} marked as selected.`, 'success');
-      const { data: a } = await drivesApi.applications(id);
-      setApps(a ?? []);
+      setBusy('bulk');
+      await recruiterApi.bulkApplicants(id, {
+        application_ids: selectedAppIds,
+        action: bulkActionTarget,
+      });
+      toast(
+        `Successfully ${bulkActionTarget === 'shortlist' ? 'shortlisted' : 'rejected'} ${selectedAppIds.length} candidate(s).`,
+        'success'
+      );
+      setBulkActionTarget(null);
+      setSelectedAppIds([]);
+      fetchApplicants();
+      loadDrive();
     } catch (err) {
-      toast(errMsg(err, 'Could not mark as selected.'), 'error');
+      toast(errMsg(err, 'Bulk action failed.'), 'danger');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedAppIds.length === applicants.length) {
+      setSelectedAppIds([]);
+    } else {
+      setSelectedAppIds(applicants.map((a) => a.id));
+    }
+  };
+
+  const toggleSelectApp = (appId) => {
+    if (selectedAppIds.includes(appId)) {
+      setSelectedAppIds(selectedAppIds.filter((item) => item !== appId));
+    } else {
+      setSelectedAppIds([...selectedAppIds, appId]);
+    }
+  };
+
+  // -------------------------------------------------------------------------
+  // Offer Actions
+  // -------------------------------------------------------------------------
+  const handleExtendOfferSubmit = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setBusy('offer');
+      await recruiterApi.createOffer(id, {
+        application_id: Number(offerForm.application_id),
+        package_lpa: parseFloat(offerForm.package_lpa),
+        joining_date: offerForm.joining_date || undefined,
+        note: offerForm.note || undefined,
+      });
+      toast('Placement offer extended successfully.', 'success');
+      setExtendOfferModalOpen(false);
+      setOfferForm({ application_id: '', package_lpa: '', joining_date: '', note: '' });
+      fetchOffers();
+      loadDrive();
+    } catch (err) {
+      toast(errMsg(err, 'Failed to extend offer.'), 'danger');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const handleWithdrawOfferConfirm = async () => {
+    if (!withdrawOfferTarget) return;
+    try {
+      setBusy('withdraw_offer');
+      await recruiterApi.withdrawOffer(withdrawOfferTarget.id);
+      toast('Offer withdrawn successfully.', 'success');
+      setWithdrawOfferTarget(null);
+      fetchOffers();
+      loadDrive();
+    } catch (err) {
+      toast(errMsg(err, 'Could not withdraw offer.'), 'danger');
+    } finally {
+      setBusy(null);
     }
   };
 
@@ -155,7 +329,7 @@ export default function RecruiterDriveDetail() {
     },
     {
       key: 'interview',
-      label: 'Interviews',
+      label: 'Interviews & Offers',
       state: stageIdx >= 3 ? 'done' : stageIdx === 2 ? 'current' : 'todo',
       detail: pipeline?.interviews ? `${pipeline.interviews} slots` : '',
     },
@@ -167,21 +341,10 @@ export default function RecruiterDriveDetail() {
   const workspaceTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'eligibility', label: 'Eligibility' },
-    { id: 'applicants', label: `Applicants (${apps.length})` },
+    { id: 'applicants', label: `Applicants (${pipeline?.applied ?? applicants.length})` },
     { id: 'test', label: 'Test & Questions' },
-    { id: 'results', label: 'Results' },
-    { id: 'interviews', label: 'Interviews' },
+    { id: 'results', label: `Offers & Results (${offers.length})` },
   ];
-
-  const filteredApps = apps.filter((a) => {
-    if (!search.trim()) return true;
-    const q = search.toLowerCase();
-    return (
-      a.student?.name?.toLowerCase().includes(q) ||
-      a.student?.roll_no?.toLowerCase().includes(q) ||
-      a.student?.branch?.toLowerCase().includes(q)
-    );
-  });
 
   return (
     <div className="space-y-6">
@@ -198,87 +361,80 @@ export default function RecruiterDriveDetail() {
             {stage === 'open' && (
               <Button
                 variant="primary"
-                onClick={scheduleTests}
+                size="sm"
                 disabled={!canScheduleTests || busy === 'tests'}
-                loading={busy === 'tests'}
+                onClick={() => setScheduleConfirmOpen(true)}
               >
-                Schedule Tests
+                {busy === 'tests' ? 'Scheduling...' : 'Schedule Tests →'}
               </Button>
             )}
             {stage === 'testing' && (
               <Button
                 variant="primary"
-                onClick={publishResults}
+                size="sm"
                 disabled={!canPublish || busy === 'results'}
-                loading={busy === 'results'}
+                onClick={() => setPublishConfirmOpen(true)}
               >
-                Publish Results
+                {busy === 'results' ? 'Publishing...' : 'Publish Results & Setup Interviews →'}
               </Button>
             )}
           </div>
         }
       />
 
-      {/* Stepper Pipeline */}
-      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-subtle">
-        <div className="flex items-center justify-between mb-4">
-          <Badge variant={STAGE_META[stage]?.variant ?? 'neutral'}>
-            {STAGE_META[stage]?.label ?? stage}
-          </Badge>
-          <span className="text-xs font-mono text-[var(--text-muted)]">
-            Apply by: {formatDate(drive.application_deadline).split(',')[0]}
+      {/* Stepper Pipeline Card */}
+      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
+              Current Pipeline Stage:
+            </span>
+            <Badge variant={STAGE_META[stage]?.variant ?? 'neutral'}>
+              {STAGE_META[stage]?.label ?? stage}
+            </Badge>
+          </div>
+          <span className="text-xs text-[var(--text-muted)] font-mono">
+            Drive Deadline: {formatDate(drive.application_deadline)}
           </span>
         </div>
-        <Stepper steps={pipeSteps} />
+        <Stepper steps={pipeSteps} current={pipeSteps[stageIdx]?.key ?? 'apply'} />
       </div>
 
-      {/* Stat Ribbon */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard label="Applied" value={pipeline?.applied ?? 0} icon={<Users className="w-5 h-5" />} />
-        <StatCard label="Tests Taken" value={pipeline?.tests_taken ?? 0} icon={<FileText className="w-5 h-5" />} />
-        <StatCard
-          label="Avg Score"
-          value={pipeline?.avg_score != null ? `${Number(pipeline.avg_score).toFixed(1)}%` : '—'}
-          icon={<Award className="w-5 h-5" />}
-        />
-        <StatCard label="Shortlisted" value={pipeline?.shortlisted ?? 0} icon={<CheckCircle2 className="w-5 h-5" />} />
-        <StatCard label="Interviews" value={pipeline?.interviews ?? 0} icon={<Calendar className="w-5 h-5" />} />
+      {/* Workspace Tabs Navigation */}
+      <div className="border-b border-[var(--border-color)] flex items-center gap-1 overflow-x-auto">
+        {workspaceTabs.map((t) => (
+          <button
+            key={t.id}
+            onClick={() => {
+              setTab(t.id);
+              setSelectedAppIds([]);
+            }}
+            className={`px-4 py-2.5 text-xs font-serif font-bold tracking-wide transition-all border-b-2 whitespace-nowrap ${
+              tab === t.id
+                ? 'border-[#D9B36C] text-[#D9B36C]'
+                : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
-
-      {/* Segmented Workspace Tabs */}
-      <FilterBar
-        tabs={workspaceTabs}
-        activeTab={tab}
-        onTabChange={setTab}
-      />
 
       {/* Tab: Overview */}
       {tab === 'overview' && (
         <div className="space-y-6">
-          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle">
-            <h3 className="text-base font-serif font-bold text-[var(--text-primary)] mb-2">Role Overview</h3>
-            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
-              {drive.description || 'No detailed role description provided.'}
-            </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <StatCard label="Applied" value={pipeline?.applied ?? 0} icon={<Users className="w-5 h-5" />} />
+            <StatCard label="Tests Taken" value={pipeline?.tests_taken ?? 0} icon={<Award className="w-5 h-5" />} />
+            <StatCard label="Shortlisted" value={pipeline?.shortlisted ?? 0} icon={<CheckCircle2 className="w-5 h-5" />} />
+            <StatCard label="Selected / Offers" value={pipeline?.selected ?? offers.length} icon={<DollarSign className="w-5 h-5" />} />
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase">Graduation Year</span>
-              <p className="font-bold text-sm text-[var(--text-primary)] mt-0.5">{drive.graduation_year || 2027}</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase">Min CGPA</span>
-              <p className="font-bold text-sm text-[var(--text-primary)] mt-0.5">{drive.min_cgpa}</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase">Test Duration</span>
-              <p className="font-bold text-sm text-[var(--text-primary)] mt-0.5">{drive.test_duration_min} min</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase">Interview Length</span>
-              <p className="font-bold text-sm text-[var(--text-primary)] mt-0.5">{drive.interview_duration_min} min</p>
-            </div>
+          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-3">
+            <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">Job Description</h3>
+            <p className="text-sm text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
+              {drive.description || 'No description provided for this placement drive.'}
+            </p>
           </div>
         </div>
       )}
@@ -286,7 +442,7 @@ export default function RecruiterDriveDetail() {
       {/* Tab: Eligibility */}
       {tab === 'eligibility' && (
         <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
-          <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">Eligibility Criteria</h3>
+          <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">Eligibility Parameters</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono">
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
               <span className="text-[var(--text-muted)] uppercase">Eligible Branches</span>
@@ -295,16 +451,16 @@ export default function RecruiterDriveDetail() {
               </p>
             </div>
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
+              <span className="text-[var(--text-muted)] uppercase">Minimum CGPA</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.min_cgpa}</p>
+            </div>
+            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
               <span className="text-[var(--text-muted)] uppercase">Maximum Active Backlogs</span>
               <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.max_backlogs ?? 0}</p>
             </div>
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)] uppercase">Cutoff Score for Interview</span>
+              <span className="text-[var(--text-muted)] uppercase">Qualifying Test Cutoff</span>
               <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.min_test_score}%</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)] uppercase">Max Shortlist Cap</span>
-              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.max_shortlist ?? 20} candidates</p>
             </div>
           </div>
         </div>
@@ -313,76 +469,220 @@ export default function RecruiterDriveDetail() {
       {/* Tab: Applicants */}
       {tab === 'applicants' && (
         <div className="space-y-4">
-          <FilterBar
-            search={search}
-            onSearchChange={setSearch}
-            searchPlaceholder="Search applicants by name, roll, or branch..."
-          />
-          {filteredApps.length === 0 ? (
+          {/* Filter Bar with Status & Sort Selectors */}
+          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-4 shadow-subtle flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div className="flex-1 max-w-md">
+              <input
+                type="text"
+                placeholder="Search candidates by name, roll no, email..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full px-3.5 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-app)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] focus:outline-none font-mono"
+              >
+                <option value="all">All Statuses</option>
+                <option value="applied">Applied</option>
+                <option value="test_taken">Test Taken</option>
+                <option value="shortlisted">Shortlisted</option>
+                <option value="selected">Selected</option>
+                <option value="rejected">Rejected</option>
+                <option value="withdrawn">Withdrawn</option>
+              </select>
+
+              <select
+                value={sortBy}
+                onChange={(e) => {
+                  setSortBy(e.target.value);
+                  setPage(1);
+                }}
+                className="px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-xs text-[var(--text-primary)] focus:outline-none font-mono"
+              >
+                <option value="applied_desc">Newest First</option>
+                <option value="applied_asc">Oldest First</option>
+                <option value="cgpa_desc">Highest CGPA</option>
+                <option value="cgpa_asc">Lowest CGPA</option>
+                <option value="test_score_desc">Highest Test Score</option>
+                <option value="test_score_asc">Lowest Test Score</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bulk Action Sticky Bar (Visible when >= 1 candidate selected) */}
+          {selectedAppIds.length > 0 && (
+            <div className="bg-[#0B1F1A] text-[#F7F3EA] border border-[#D9B36C] rounded-[8px] px-4 py-3 flex items-center justify-between gap-4 shadow-panel animate-in fade-in">
+              <div className="flex items-center gap-2 text-xs font-mono">
+                <span className="font-bold text-[#D9B36C]">{selectedAppIds.length}</span> applicant(s) selected
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setBulkActionTarget('shortlist')}
+                  className="font-bold"
+                >
+                  Shortlist ({selectedAppIds.length})
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={() => setBulkActionTarget('reject')}
+                >
+                  Reject ({selectedAppIds.length})
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedAppIds([])}
+                  className="text-xs text-[#F7F3EA]/70 hover:text-white"
+                >
+                  Clear Selection
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Applicants Table */}
+          {applicantsLoading ? (
+            <Skeleton className="h-64 w-full rounded-[10px]" />
+          ) : applicants.length === 0 ? (
             <EmptyState
-              title="No applicants found"
-              message={search ? 'No candidates match your search.' : 'Eligible students will appear here as they apply.'}
+              title="No matching applicants"
+              message={search ? 'No candidates match your search filters.' : 'No candidates have applied to this drive yet.'}
             />
           ) : (
             <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
-              <DataTable
-                columns={[
-                  {
-                    key: 'student',
-                    label: 'Student Name',
-                    render: (a) => (
-                      <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
-                        {a.student?.name}
-                      </span>
-                    ),
-                  },
-                  { key: 'roll', label: 'Roll No', render: (a) => <span className="font-mono text-xs">{a.student?.roll_no ?? '—'}</span> },
-                  { key: 'branch', label: 'Branch', render: (a) => <span className="font-mono text-xs">{a.student?.branch ?? '—'}</span> },
-                  { key: 'cgpa', label: 'CGPA', render: (a) => <span className="font-mono font-bold text-xs">{a.student?.cgpa ?? '—'}</span> },
-                  {
-                    key: 'score',
-                    label: 'Test Score',
-                    render: (a) =>
-                      a.test_percentage != null ? (
-                        <span className="font-mono font-bold text-xs text-[#0F7B5F] dark:text-[#D9B36C]">
-                          {Number(a.test_percentage).toFixed(1)}%
-                        </span>
-                      ) : (
-                        <span className="font-mono text-xs text-[var(--text-muted)]">—</span>
-                      ),
-                  },
-                  {
-                    key: 'status',
-                    label: 'Status',
-                    render: (a) => (
-                      <Badge variant={STATUS_VARIANT[a.status] ?? 'neutral'}>
-                        {a.status?.replace('_', ' ')}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    key: 'action',
-                    label: '',
-                    render: (a) =>
-                      a.status === 'shortlisted' ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => markSelected(a.student.id, a.student.name)}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-subtle)] text-[var(--text-muted)] font-mono uppercase text-[10px]">
+                      <th className="p-3 w-10 text-center">
+                        <button
+                          type="button"
+                          onClick={toggleSelectAll}
+                          className="hover:text-[#D9B36C] transition-colors"
                         >
-                          Select ✓
-                        </Button>
-                      ) : null,
-                  },
-                ]}
-                rows={filteredApps}
-              />
+                          {selectedAppIds.length === applicants.length && applicants.length > 0 ? (
+                            <CheckSquare className="w-4 h-4 text-[#D9B36C]" />
+                          ) : (
+                            <Square className="w-4 h-4" />
+                          )}
+                        </button>
+                      </th>
+                      <th className="p-3">Candidate</th>
+                      <th className="p-3">Roll No</th>
+                      <th className="p-3">Branch</th>
+                      <th className="p-3">CGPA</th>
+                      <th className="p-3">Backlogs</th>
+                      <th className="p-3">Test Score</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3 text-right">Resume</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)]">
+                    {applicants.map((a) => {
+                      const isSelected = selectedAppIds.includes(a.id);
+                      return (
+                        <tr
+                          key={a.id}
+                          className={`hover:bg-[var(--bg-subtle)]/50 transition-colors ${
+                            isSelected ? 'bg-[#D9B36C]/5' : ''
+                          }`}
+                        >
+                          <td className="p-3 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleSelectApp(a.id)}
+                              className="hover:text-[#D9B36C] transition-colors"
+                            >
+                              {isSelected ? (
+                                <CheckSquare className="w-4 h-4 text-[#D9B36C]" />
+                              ) : (
+                                <Square className="w-4 h-4 text-[var(--text-muted)]" />
+                              )}
+                            </button>
+                          </td>
+                          <td className="p-3">
+                            <div className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                              {a.name}
+                            </div>
+                            <div className="text-[11px] text-[var(--text-muted)] font-mono">{a.email}</div>
+                          </td>
+                          <td className="p-3 font-mono font-medium">{a.roll_no}</td>
+                          <td className="p-3 font-mono">{a.branch}</td>
+                          <td className="p-3 font-mono font-bold text-[var(--text-primary)]">
+                            {a.cgpa.toFixed(2)}
+                          </td>
+                          <td className="p-3 font-mono">{a.backlogs}</td>
+                          <td className="p-3 font-mono font-bold">
+                            {a.test_score != null ? (
+                              <span className="text-[#0F7B5F] dark:text-[#D9B36C]">
+                                {a.test_score.toFixed(1)}%
+                              </span>
+                            ) : (
+                              <span className="text-[var(--text-muted)] font-normal">—</span>
+                            )}
+                          </td>
+                          <td className="p-3">
+                            <Badge variant={STATUS_VARIANT[a.status] ?? 'neutral'}>
+                              {a.status?.replace('_', ' ')}
+                            </Badge>
+                          </td>
+                          <td className="p-3 text-right">
+                            {a.has_resume ? (
+                              <a
+                                href={a.resume_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="inline-flex items-center gap-1 text-xs text-[#0F7B5F] hover:underline font-mono font-semibold"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                                Resume ↗
+                              </a>
+                            ) : (
+                              <span className="text-[var(--text-muted)] italic font-mono text-[11px]">
+                                No file
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Pagination Controls */}
+              {applicantTotal > pageSize && (
+                <div className="p-4 border-t border-[var(--border-color)] flex items-center justify-between">
+                  <span className="text-xs text-[var(--text-muted)] font-mono">
+                    Showing {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, applicantTotal)} of {applicantTotal} applicants
+                  </span>
+                  <Pagination
+                    currentPage={page}
+                    totalPages={Math.ceil(applicantTotal / pageSize)}
+                    onPageChange={setPage}
+                  />
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Tab: Test */}
+      {/* Tab: Test & Questions */}
       {tab === 'test' && (
         <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
           <div className="flex items-center justify-between">
@@ -391,97 +691,285 @@ export default function RecruiterDriveDetail() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Test Duration</span>
+              <span className="text-[var(--text-muted)] uppercase">Test Duration</span>
               <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.test_duration_min} Minutes</p>
             </div>
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Test Date</span>
-              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.test_date ? formatDate(drive.test_date) : 'Scheduled with pipeline'}</p>
+              <span className="text-[var(--text-muted)] uppercase">Test Date</span>
+              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
+                {drive.test_date ? formatDate(drive.test_date) : 'Scheduled with pipeline'}
+              </p>
             </div>
             <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Qualifying Cutoff</span>
+              <span className="text-[var(--text-muted)] uppercase">Qualifying Cutoff</span>
               <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.min_test_score}%</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Tab: Results */}
-      {tab === 'results' && (
-        (() => {
-          const taken = apps
-            .filter((a) => a.test_percentage != null)
-            .sort((x, y) => y.test_percentage - x.test_percentage)
-            .map((a, i) => ({ ...a, rank: i + 1 }));
+      {/* Tab: Offers & Results */}
+      {(tab === 'results' || tab === 'offers') && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">
+                Drive Placement Offers ({offers.length})
+              </h3>
+              <p className="text-xs text-[var(--text-muted)] mt-0.5">
+                Extend formal job offers to shortlisted or selected candidates.
+              </p>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={<PlusCircle className="w-4 h-4" />}
+              onClick={() => {
+                setOfferForm({
+                  application_id: '',
+                  package_lpa: drive.package_lpa || '',
+                  joining_date: '',
+                  note: '',
+                });
+                setExtendOfferModalOpen(true);
+              }}
+            >
+              Extend Offer
+            </Button>
+          </div>
 
-          return taken.length === 0 ? (
+          {offersLoading ? (
+            <Skeleton className="h-48 w-full rounded-[10px]" />
+          ) : offers.length === 0 ? (
             <EmptyState
-              title="No test results yet"
-              message="Student scores and rank positions will populate here automatically as exams conclude."
+              title="No offers extended yet"
+              message="Shortlist candidates from the Applicants tab, then extend formal compensation offers."
+              action={
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => setExtendOfferModalOpen(true)}
+                >
+                  Extend First Offer
+                </Button>
+              }
             />
           ) : (
             <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
-              <DataTable
-                columns={[
-                  { key: 'rank', label: 'Rank', render: (a) => <span className="font-mono font-bold text-xs">{a.rank}</span> },
-                  { key: 'student', label: 'Student', render: (a) => <span className="font-serif font-bold text-sm">{a.student?.name}</span> },
-                  {
-                    key: 'score',
-                    label: 'Score',
-                    render: (a) => (
-                      <span className="font-mono font-bold text-xs text-[#0F7B5F] dark:text-[#D9B36C]">
-                        {Number(a.test_percentage).toFixed(1)}%
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'cutoff',
-                    label: `Cutoff (${drive.min_test_score}%)`,
-                    render: (a) => (
-                      <Badge variant={a.test_percentage >= drive.min_test_score ? 'success' : 'danger'}>
-                        {a.test_percentage >= drive.min_test_score ? 'Qualified' : 'Below Cutoff'}
-                      </Badge>
-                    ),
-                  },
-                  {
-                    key: 'status',
-                    label: 'Status',
-                    render: (a) => (
-                      <Badge variant={STATUS_VARIANT[a.status] ?? 'neutral'}>
-                        {a.status?.replace('_', ' ')}
-                      </Badge>
-                    ),
-                  },
-                ]}
-                rows={taken}
-              />
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-[var(--border-color)] bg-[var(--bg-subtle)] text-[var(--text-muted)] font-mono uppercase text-[10px]">
+                      <th className="p-3">Candidate</th>
+                      <th className="p-3">Roll No</th>
+                      <th className="p-3">Branch</th>
+                      <th className="p-3">Package (LPA)</th>
+                      <th className="p-3">Joining Date</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Responded</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-color)]">
+                    {offers.map((off) => (
+                      <tr key={off.id} className="hover:bg-[var(--bg-subtle)]/50 transition-colors">
+                        <td className="p-3">
+                          <div className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                            {off.name}
+                          </div>
+                          <div className="text-[11px] text-[var(--text-muted)] font-mono">{off.email}</div>
+                        </td>
+                        <td className="p-3 font-mono font-medium">{off.roll_no}</td>
+                        <td className="p-3 font-mono">{off.branch}</td>
+                        <td className="p-3 font-mono font-bold text-[#D9B36C]">
+                          ₹{Number(off.package_lpa).toFixed(2)} LPA
+                        </td>
+                        <td className="p-3 font-mono text-[var(--text-muted)]">
+                          {off.joining_date ? new Date(off.joining_date).toLocaleDateString() : 'TBD'}
+                        </td>
+                        <td className="p-3">
+                          <Badge
+                            variant={
+                              off.status === 'accepted'
+                                ? 'success'
+                                : off.status === 'offered'
+                                ? 'gold'
+                                : 'neutral'
+                            }
+                          >
+                            {off.status?.toUpperCase()}
+                          </Badge>
+                        </td>
+                        <td className="p-3 font-mono text-[11px] text-[var(--text-muted)]">
+                          {off.responded_at ? new Date(off.responded_at).toLocaleDateString() : 'Awaiting response'}
+                        </td>
+                        <td className="p-3 text-right">
+                          {off.status === 'offered' && (
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => setWithdrawOfferTarget(off)}
+                              className="text-xs"
+                            >
+                              Withdraw
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          );
-        })()
-      )}
-
-      {/* Tab: Interviews */}
-      {tab === 'interviews' && (
-        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-4">
-          <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">Interview Timetable & Panels</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-mono">
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Parallel Panels</span>
-              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.num_interviewers} Panels</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Slot Duration</span>
-              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">{drive.interview_duration_min} Minutes</p>
-            </div>
-            <div className="p-4 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)]">
-              <span className="text-[var(--text-muted)]">Interview Date</span>
-              <p className="text-sm font-bold text-[var(--text-primary)] mt-1">
-                {drive.interview_date ? formatDate(drive.interview_date) : 'Auto-scheduled post results'}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
+
+      {/* Modal: Extend Formal Offer */}
+      <Modal
+        open={extendOfferModalOpen}
+        onClose={() => setExtendOfferModalOpen(false)}
+        title="Extend Placement Offer"
+      >
+        <form onSubmit={handleExtendOfferSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 font-mono">
+              Select Candidate / Application ID
+            </label>
+            <select
+              value={offerForm.application_id}
+              onChange={(e) => setOfferForm({ ...offerForm, application_id: e.target.value })}
+              required
+              className="w-full px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C] font-mono"
+            >
+              <option value="">-- Choose Candidate --</option>
+              {applicants
+                .filter((a) => a.status === 'shortlisted' || a.status === 'selected')
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.name} ({a.roll_no} · {a.branch} · CGPA {a.cgpa.toFixed(2)}) — Status: {a.status}
+                  </option>
+                ))}
+            </select>
+            <p className="text-[11px] text-[var(--text-muted)] mt-1">
+              Note: Offers can be extended to candidates who have been Shortlisted or Selected.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 font-mono">
+                Annual Package (LPA) *
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0.1"
+                placeholder="e.g. 18.5"
+                value={offerForm.package_lpa}
+                onChange={(e) => setOfferForm({ ...offerForm, package_lpa: e.target.value })}
+                required
+                className="w-full px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C] font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 font-mono">
+                Expected Joining Date
+              </label>
+              <input
+                type="date"
+                value={offerForm.joining_date}
+                onChange={(e) => setOfferForm({ ...offerForm, joining_date: e.target.value })}
+                className="w-full px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1 font-mono">
+              Offer Note / Welcome Message
+            </label>
+            <textarea
+              rows={3}
+              maxLength={500}
+              placeholder="Congratulations! We were impressed with your technical rounds and problem-solving abilities..."
+              value={offerForm.note}
+              onChange={(e) => setOfferForm({ ...offerForm, note: e.target.value })}
+              className="w-full px-3 py-2 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-surface)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C]"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-[var(--border-color)]">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              onClick={() => setExtendOfferModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="sm"
+              disabled={busy === 'offer'}
+              className="flex items-center gap-1.5"
+            >
+              {busy === 'offer' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <DollarSign className="w-3.5 h-3.5" />}
+              {busy === 'offer' ? 'Sending Offer...' : 'Extend Formal Offer'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Confirm Bulk Action Dialog */}
+      <ConfirmDialog
+        open={!!bulkActionTarget}
+        title={`${bulkActionTarget === 'shortlist' ? 'Shortlist' : 'Reject'} ${selectedAppIds.length} Candidate(s)?`}
+        message={`Are you sure you want to ${bulkActionTarget} all ${selectedAppIds.length} selected candidate(s)? This will update their application state and send notifications.`}
+        confirmLabel={bulkActionTarget === 'shortlist' ? 'Shortlist Candidates' : 'Reject Candidates'}
+        variant={bulkActionTarget === 'shortlist' ? 'primary' : 'danger'}
+        loading={busy === 'bulk'}
+        onConfirm={handleBulkActionConfirm}
+        onCancel={() => setBulkActionTarget(null)}
+      />
+
+      {/* Confirm Withdraw Offer Dialog */}
+      <ConfirmDialog
+        open={!!withdrawOfferTarget}
+        title="Withdraw Placement Offer?"
+        message={`Are you sure you want to withdraw the placement offer extended to ${withdrawOfferTarget?.name} (${withdrawOfferTarget?.package_lpa} LPA)?`}
+        confirmLabel="Withdraw Offer"
+        variant="danger"
+        loading={busy === 'withdraw_offer'}
+        onConfirm={handleWithdrawOfferConfirm}
+        onCancel={() => setWithdrawOfferTarget(null)}
+      />
+
+      {/* Confirm Schedule Tests Dialog */}
+      <ConfirmDialog
+        open={scheduleConfirmOpen}
+        title="Schedule Test Sessions?"
+        message="The scheduler will automatically partition eligible applicants into computer labs based on capacity and generate student seat assignments."
+        confirmLabel="Schedule Now"
+        variant="primary"
+        loading={busy === 'tests'}
+        onConfirm={handleScheduleTests}
+        onCancel={() => setScheduleConfirmOpen(false)}
+      />
+
+      {/* Confirm Publish Results Dialog */}
+      <ConfirmDialog
+        open={publishConfirmOpen}
+        title="Publish Results & Setup Interviews?"
+        message="This will calculate qualifying cutoffs, shortlist students above the threshold, and configure interview panel allocations."
+        confirmLabel="Publish & Setup"
+        variant="primary"
+        loading={busy === 'results'}
+        onConfirm={handlePublishResults}
+        onCancel={() => setPublishConfirmOpen(false)}
+      />
     </div>
   );
 }

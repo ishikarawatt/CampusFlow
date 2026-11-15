@@ -51,9 +51,32 @@ export const drives = {
   submitTest: (id, answers) => api.post(`/drives/${id}/test/submit`, { answers }),
 };
 
-// --- Student journey ---
+// --- Student journey & profile (M5B) ---
 export const student = {
   journey: () => api.get('/student/journey'),
+  getProfile: () => api.get('/student/profile'),
+  updateProfile: (data) => api.put('/student/profile', data),
+  uploadResume: (formData) => api.post('/student/resume', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
+  downloadResume: () => api.get('/student/resume', { responseType: 'blob' }),
+  deleteResume: () => api.delete('/student/resume'),
+  getHistory: () => api.get('/student/history'),
+  getOffers: () => api.get('/student/offers'),
+  acceptOffer: (id) => api.post(`/student/offers/${id}/accept`),
+  declineOffer: (id) => api.post(`/student/offers/${id}/decline`),
+  withdrawApplication: (id) => api.patch(`/student/applications/${id}/withdraw`),
+};
+
+// --- Recruiter workspace & applicants (M5B) ---
+export const recruiter = {
+  getCompany: () => api.get('/recruiter/company'),
+  updateCompany: (data) => api.put('/recruiter/company', data),
+  getApplicants: (driveId, params) => api.get(`/recruiter/drives/${driveId}/applicants`, { params }),
+  bulkApplicants: (driveId, payload) => api.post(`/recruiter/drives/${driveId}/applicants/bulk`, payload),
+  getOffers: (driveId) => api.get(`/recruiter/drives/${driveId}/offers`),
+  createOffer: (driveId, data) => api.post(`/recruiter/drives/${driveId}/offers`, data),
+  withdrawOffer: (id) => api.post(`/recruiter/offers/${id}/withdraw`),
 };
 
 // --- Notifications ---
