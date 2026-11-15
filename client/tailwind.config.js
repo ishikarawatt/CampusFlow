@@ -1,31 +1,49 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
-  darkMode: 'class', // enable class based dark mode
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        // Brand palette
-        deepNavy: '#101D29',
-        slateNavy: '#1C3444',
-        iceWhite: '#EAF4F6',
-        electricCyan: '#26BFD0',
-        // Status colors (Tailwind defaults but explicit)
-        success: '#34D399', // emerald-400
-        warning: '#FBBF24', // amber-400
-        danger: '#EF4444', // red-500
-        info: '#60A5FA', // blue-400
-        // Text and muted variants
-        textPrimary: '#101D29',
-        textMuted: '#6B7280', // gray-500
-        border: '#E5E7EB', // gray-200
-        hover: '#F3F4F6', // gray-100
+        // Deep Midnight & Emerald & Champagne Gold Identity
+        midnight: {
+          DEFAULT: '#0B1F1A',
+          dark: '#071512',
+          surface: '#112923',
+          border: '#1C3A32',
+        },
+        emerald: {
+          DEFAULT: '#0F7B5F',
+          dark: '#0A5C47',
+          light: '#149674',
+          subtle: '#0F7B5F15',
+        },
+        gold: {
+          DEFAULT: '#D9B36C',
+          hover: '#E6C98A',
+          dark: '#B8924B',
+          subtle: '#D9B36C20',
+        },
+        ivory: {
+          DEFAULT: '#F7F3EA',
+          dark: '#EAE4D5',
+          card: '#FBF9F4',
+        },
+        brandMuted: '#B9C7C1',
       },
       fontFamily: {
-        brand: ['Fraunces', 'serif'], // brand name, page titles
-        heading: ['Archivo Black', 'sans-serif'], // dashboard headings, KPI numbers
-        body: ['DM Sans', 'system-ui', 'sans-serif'], // body, forms, nav, tables
-        mono: ['JetBrains Mono', 'ui-monospace', 'monospace'], // IDs, logs, timestamps
+        serif: ['"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+      },
+      borderRadius: {
+        btn: '6px',
+        panel: '10px',
+      },
+      boxShadow: {
+        subtle: '0 1px 3px rgba(11, 31, 26, 0.05), 0 1px 2px rgba(11, 31, 26, 0.03)',
+        panel: '0 4px 20px -2px rgba(11, 31, 26, 0.08)',
+        gold: '0 0 15px rgba(217, 179, 108, 0.25)',
       },
     },
   },

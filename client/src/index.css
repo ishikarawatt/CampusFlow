@@ -2,206 +2,151 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Theme variables – light (default) */
+/* ------------------------------------------------------------------ */
+/* CampusFlow Custom Palette: Midnight x Emerald x Champagne Gold    */
+/* ------------------------------------------------------------------ */
+
 :root {
-  --color-bg: #EAF4F6; /* iceWhite */
-  --color-surface: #FFFFFF;
-  --color-text-primary: #101D29; /* deepNavy */
-  --color-text-muted: #6B7280; /* gray-500 */
-  --color-border: #E5E7EB;
-  --color-accent: #26BFD0; /* electricCyan */
-  --color-success: #34D399;
-  --color-warning: #FBBF24;
-  --color-danger: #EF4444;
-  --color-info: #60A5FA;
+  /* Light Theme (Ivory surfaces, Midnight text, Emerald primary actions, Gold accents) */
+  --bg-app: #F7F3EA;
+  --bg-surface: #FFFFFF;
+  --bg-surface-elevated: #FBF9F4;
+  --bg-subtle: #EFE9DC;
+  
+  --text-primary: #0B1F1A;
+  --text-secondary: #3D5A52;
+  --text-muted: #6B857E;
+  
+  --border-color: #E2D9C8;
+  --border-strong: #C8BDA7;
+  --border-gold: rgba(217, 179, 108, 0.4);
+  
+  --brand-primary: #0F7B5F;
+  --brand-primary-hover: #0A5C47;
+  --brand-accent: #D9B36C;
+  --brand-accent-hover: #E6C98A;
+  
+  --status-success-bg: #E8F5F1;
+  --status-success-text: #0A5C47;
+  --status-success-border: #A3D9C9;
+  
+  --status-warning-bg: #FCF6E8;
+  --status-warning-text: #8C6B1F;
+  --status-warning-border: #E8D39E;
+  
+  --status-danger-bg: #FDF0EE;
+  --status-danger-text: #9E3524;
+  --status-danger-border: #F3BDB4;
+  
+  --status-info-bg: #EEF6F7;
+  --status-info-text: #1E6B77;
+  --status-info-border: #B2DDE3;
 }
 
-/* Dark mode overrides – applied when .dark on <html> */
 .dark {
-  --color-bg: #101D29; /* deepNavy */
-  --color-surface: #1C3444; /* slateNavy */
-  --color-text-primary: #EAF4F6; /* iceWhite */
-  --color-text-muted: #A0A0A0;
-  --color-border: #2F3B45;
-  --color-accent: #26BFD0;
+  /* Dark Theme (Midnight background & surfaces, Ivory text, Gold accents, Emerald support) */
+  --bg-app: #0B1F1A;
+  --bg-surface: #112923;
+  --bg-surface-elevated: #16352E;
+  --bg-subtle: #081713;
+  
+  --text-primary: #F7F3EA;
+  --text-secondary: #B9C7C1;
+  --text-muted: #7E968F;
+  
+  --border-color: #1C3A32;
+  --border-strong: #2A4E44;
+  --border-gold: rgba(217, 179, 108, 0.4);
+  
+  --brand-primary: #0F7B5F;
+  --brand-primary-hover: #149674;
+  --brand-accent: #D9B36C;
+  --brand-accent-hover: #E6C98A;
+  
+  --status-success-bg: rgba(15, 123, 95, 0.18);
+  --status-success-text: #4ADE80;
+  --status-success-border: rgba(74, 222, 128, 0.3);
+  
+  --status-warning-bg: rgba(217, 179, 108, 0.15);
+  --status-warning-text: #FACC15;
+  --status-warning-border: rgba(250, 204, 21, 0.3);
+  
+  --status-danger-bg: rgba(158, 53, 36, 0.2);
+  --status-danger-text: #F87171;
+  --status-danger-border: rgba(248, 113, 113, 0.3);
+  
+  --status-info-bg: rgba(30, 107, 119, 0.2);
+  --status-info-text: #38BDF8;
+  --status-info-border: rgba(56, 189, 248, 0.3);
 }
 
 body {
-  @apply bg-[var(--color-bg)] text-[var(--color-text-primary)] antialiased;
-  font-family: var(--font-body);
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Font faces – loaded via @fontsource in index.html (or import) */
-:root {
-  --font-brand: 'Fraunces', serif;
-  --font-heading: 'Archivo Black', sans-serif;
-  --font-body: 'DM Sans', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+/* Tabular figures for data, numbers, timestamps */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
-/* Apply font families via utility classes */
-.font-brand { font-family: var(--font-brand); }
-.font-heading { font-family: var(--font-heading); }
-.font-body { font-family: var(--font-body); }
-.font-mono { font-family: var(--font-mono); }
-
-/* Base components adjustments – replace old hard‑coded colours */
-.cf-card {
-  @apply bg-[var(--color-surface)] border border-[var(--color-border)] rounded-2xl p-6;
-  /* subtle shadow */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -12px rgba(0,0,0,0.08);
+/* Selection highlight in gold */
+::selection {
+  background-color: #D9B36C33;
+  color: inherit;
 }
 
-.cf-btn-primary {
-  @apply text-white;
-  background-color: var(--color-accent);
-  box-shadow: 0 4px 14px -4px rgba(38,191,208,0.5);
+/* Custom hairline gold divider */
+.cf-gold-divider {
+  height: 1px;
+  background-color: var(--border-gold);
 }
 
-.cf-btn-primary:hover:not(:disabled) {
-  box-shadow: 0 6px 20px -4px rgba(38,191,208,0.65);
-  transform: translateY(-1px);
+/* Focus visible outlines */
+:focus-visible {
+  outline: 2px solid var(--brand-accent);
+  outline-offset: 2px;
 }
 
-/* Input focus ring using accent */
-.cf-input:focus {
-  @apply ring-2 ring-[var(--color-accent)] border-[var(--color-accent)];
-}
-
-/* Scrollbars */
+/* Custom scrollbar matching midnight/ivory palette */
 .slim-scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-.slim-scroll::-webkit-scrollbar-thumb {
-  @apply bg-[var(--color-border)] rounded-full;
+  width: 6px;
+  height: 6px;
 }
 .slim-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
-
-/* Misc utilities */
-.text-primary { color: var(--color-text-primary); }
-.text-muted { color: var(--color-text-muted); }
-.bg-primary { background-color: var(--color-bg); }
-.bg-surface { background-color: var(--color-surface); }
-.border-primary { border-color: var(--color-border); }
-
-@tailwind components;
-@tailwind utilities;
-
-body {
-  @apply bg-[#f3f5fa] text-slate-800 antialiased;
-}
-
-/* ------------------------------------------------------------------ */
-/* CampusFlow design system — one visual language for every portal.    */
-/* ------------------------------------------------------------------ */
-@layer components {
-  .cf-card {
-    @apply bg-white rounded-2xl border border-slate-200/70 p-6;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -12px rgba(79, 70, 229, 0.12);
-  }
-  .cf-card-hover {
-    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
-  }
-  .cf-btn {
-    @apply inline-flex items-center justify-center gap-2 text-sm font-semibold rounded-xl px-5 py-2.5 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none;
-  }
-  .cf-btn-primary {
-    @apply cf-btn text-white;
-    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-    box-shadow: 0 4px 14px -4px rgba(79, 70, 229, 0.5);
-  }
-  .cf-btn-primary:hover:not(:disabled) {
-    box-shadow: 0 6px 20px -4px rgba(79, 70, 229, 0.65);
-    transform: translateY(-1px);
-  }
-  .cf-btn-secondary {
-    @apply cf-btn bg-white text-slate-700 border border-slate-200 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50/50;
-  }
-  .cf-btn-danger {
-    @apply cf-btn bg-rose-600 hover:bg-rose-700 text-white;
-  }
-  .cf-btn-success {
-    @apply cf-btn bg-emerald-600 hover:bg-emerald-700 text-white;
-  }
-  .cf-input {
-    @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-shadow;
-  }
-  .cf-label {
-    @apply block text-[13px] font-semibold text-slate-700 mb-1.5;
-  }
-  .cf-hint {
-    @apply text-xs text-slate-400 mt-1;
-  }
-  .cf-section-title {
-    @apply text-base font-bold text-slate-900;
-  }
-  .cf-section-sub {
-    @apply text-sm text-slate-500 mt-0.5;
-  }
-  .cf-hero {
-    @apply rounded-2xl p-6 md:p-8 text-white relative overflow-hidden;
-    background: linear-gradient(120deg, #312e81 0%, #4f46e5 55%, #7c3aed 100%);
-  }
-  .cf-hero::after {
-    content: '';
-    position: absolute;
-    right: -60px;
-    top: -60px;
-    width: 240px;
-    height: 240px;
-    border-radius: 9999px;
-    background: radial-gradient(circle, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0) 70%);
-    pointer-events: none;
-  }
-  .cf-stat {
-    @apply bg-white rounded-2xl border border-slate-200/70 p-5 flex items-center gap-4;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  }
-  .cf-chip {
-    @apply inline-flex items-center gap-1.5 text-xs font-semibold rounded-full px-3 py-1;
-  }
-  .cf-divider {
-    @apply border-t border-slate-100 my-5;
-  }
-}
-
-/* Slim, neutral scrollbars for panels and tables */
-.slim-scroll::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
 .slim-scroll::-webkit-scrollbar-thumb {
-  @apply bg-slate-300 rounded-full;
+  background: var(--border-color);
+  border-radius: 4px;
 }
-.slim-scroll::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-/* Monospace for log / kernel views */
-.font-mono-tight {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+.slim-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-accent);
 }
 
-/* Soft pulse for the live-dot in the Kernel Monitor */
-@keyframes cf-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.25; }
-}
-.cf-live-dot {
-  animation: cf-blink 1.6s ease-in-out infinite;
+/* Subtle transitions for cards & buttons */
+.cf-transition {
+  transition: all 180ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Gentle entrance for cards */
-@keyframes cf-rise {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+/* Live pulse dot for real-time states */
+@keyframes cf-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.55; }
 }
-.cf-rise {
-  animation: cf-rise 0.35s ease-out both;
+.cf-live-pulse {
+  animation: cf-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
-.cf-rise-1 { animation-delay: 0.05s; }
-.cf-rise-2 { animation-delay: 0.1s; }
-.cf-rise-3 { animation-delay: 0.15s; }
+
+/* Skeleton shimmer */
+@keyframes cf-shimmer {
+  0% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+  100% { opacity: 0.5; }
+}
+.cf-shimmer {
+  animation: cf-shimmer 1.8s ease-in-out infinite;
+}
