@@ -216,6 +216,13 @@ router.get('/:id', optionalAuth, async (req, res, next) => {
     if (!drive) {
       return res.status(404).json({ error: 'Drive not found.' });
     }
+
+    if (req.user && req.user.role === 'recruiter') {
+      const isOwned = (req.user.company_id && drive.company_id === req.user.company_id) || drive.created_by === req.user.id;
+      if (!isOwned) {
+        return res.status(403).json({ error: 'You are not authorized to access this drive.' });
+      }
+    }
     const body = {
       drive: shapeDrive(drive),
       criteria: {

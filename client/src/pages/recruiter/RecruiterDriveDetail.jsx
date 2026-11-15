@@ -55,6 +55,7 @@ export default function RecruiterDriveDetail() {
   const { toast } = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [drive, setDrive] = useState(null);
   const [pipeline, setPipeline] = useState(null);
   const [tab, setTab] = useState('overview');
@@ -94,13 +95,17 @@ export default function RecruiterDriveDetail() {
   const loadDrive = async () => {
     try {
       setLoading(true);
+      setForbidden(false);
       const [{ data: d }, { data: p }] = await Promise.all([
         drivesApi.get(id),
-        drivesApi.pipeline(id).catch(() => ({ data: null })),
+        drivesApi.pipeline(id),
       ]);
       setDrive(d.drive ?? d);
       setPipeline(p);
     } catch (err) {
+      if (err?.response?.status === 403) {
+        setForbidden(true);
+      }
       toast(errMsg(err, 'Could not load this placement drive.'), 'danger');
     } finally {
       setLoading(false);
@@ -289,6 +294,20 @@ export default function RecruiterDriveDetail() {
         <Skeleton className="h-48 w-full rounded-[10px]" />
         <Skeleton className="h-64 w-full rounded-[10px]" />
       </div>
+    );
+  }
+
+  if (forbidden) {
+    return (
+      <EmptyState
+        title="Access Denied"
+        message="You are not authorized to view or manage this placement drive. Recruiters may only access drives owned by their company."
+        action={
+          <Link to="/recruiter/drives">
+            <Button variant="primary">Back to Drives</Button>
+          </Link>
+        }
+      />
     );
   }
 
