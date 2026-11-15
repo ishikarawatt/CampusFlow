@@ -13,6 +13,7 @@ import Skeleton from '../../components/Skeleton.jsx';
 import Button from '../../components/Button.jsx';
 import FilterBar from '../../components/FilterBar.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
+import { LedgerStrip, MarginNote } from '../../components/signature';
 
 export default function StudentJourney() {
   const { toast } = useToast();
@@ -136,6 +137,32 @@ export default function StudentJourney() {
           { label: 'My Journey' },
         ]}
       />
+
+      <LedgerStrip
+        items={[
+          { label: 'APPLICATIONS', value: journey.length, unit: 'Registered' },
+          {
+            label: 'SHORTLISTED',
+            value: journey.filter((j) => j.application?.status === 'shortlisted').length,
+            unit: 'Active',
+          },
+          {
+            label: 'FORMAL OFFERS',
+            value: offers.length,
+            unit: offers.some((o) => o.status === 'accepted') ? 'ACCEPTED' : 'Pending',
+            trend: offers.length > 0 ? 'up' : null,
+          },
+          {
+            label: 'WITHDRAWN',
+            value: journey.filter((j) => j.application?.status === 'withdrawn').length,
+            unit: 'Archived',
+          },
+        ]}
+      />
+
+      <MarginNote title="INSTITUTIONAL PLACEMENT REGULATION" variant="gold">
+        Placement offers extended through CampusFlow are binding once accepted. Acceptance of any offer triggers automatic institutional withdrawal of all other pending applications pursuant to the placement office guidelines.
+      </MarginNote>
 
       <FilterBar
         search={search}

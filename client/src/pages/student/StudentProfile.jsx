@@ -7,6 +7,7 @@ import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import ConfirmDialog from '../../components/ConfirmDialog';
 import Skeleton from '../../components/Skeleton';
+import { StampBadge, MarginNote } from '../../components/signature';
 import {
   UserCircle,
   Mail,
@@ -253,6 +254,10 @@ export default function StudentProfile() {
         ]}
       />
 
+      <MarginNote title="STUDENT PROFILE DIRECTIVE" variant="neutral">
+        Academic credentials (CGPA, Department, Backlogs) are synchronized directly from the College Registrar database and cannot be modified directly. For discrepancies, contact the Controller of Examinations.
+      </MarginNote>
+
       {/* Profile Completeness Meter */}
       <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle">
         <div className="flex items-center justify-between mb-3">
@@ -373,9 +378,9 @@ export default function StudentProfile() {
       <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
         <div className="px-6 py-4 border-b border-[var(--border-color)] flex items-center justify-between">
           <h3 className="text-sm font-serif font-bold text-[var(--text-primary)]">Institutional Academic Record</h3>
-          <span className="text-[11px] font-mono text-[var(--text-muted)] uppercase tracking-wider">
-            Verified by Placement Cell
-          </span>
+          <StampBadge variant="success" size="sm">
+            VERIFIED RECORD
+          </StampBadge>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-[var(--border-color)] border-b border-[var(--border-color)]">
           <div className="p-4 flex items-center gap-3">

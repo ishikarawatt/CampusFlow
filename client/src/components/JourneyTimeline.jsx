@@ -1,6 +1,6 @@
 import React from 'react';
-import Badge from './Badge';
 import Button from './Button';
+import { StampBadge } from './signature';
 import { CheckCircle2, Clock, Calendar, AlertCircle, FileText, Ban } from 'lucide-react';
 
 export default function JourneyTimeline({
@@ -26,107 +26,132 @@ export default function JourneyTimeline({
   else if (offer?.status === 'offered') badgeVariant = 'gold';
 
   return (
-    <div className={`bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-subtle space-y-5 ${isWithdrawn ? 'opacity-70' : ''}`}>
+    <div
+      className={`bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-5 shadow-xs space-y-5 ${
+        isWithdrawn ? 'opacity-70' : ''
+      }`}
+    >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[var(--border-color)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#E8E0D0] dark:border-midnight-border">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-serif font-bold text-lg text-[var(--text-primary)]">
+            <h3 className="font-serif font-bold text-lg text-midnight dark:text-ivory">
               {driveTitle}
             </h3>
-            <Badge variant="neutral">{packageLpa ? `${packageLpa} LPA` : 'Placement Drive'}</Badge>
-            {offer?.status === 'accepted' && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-[#0F7B5F]/15 text-[#0F7B5F] border border-[#0F7B5F]/30 font-mono">
-                🎉 Offer Accepted
+            {packageLpa && (
+              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-[#FAF7F0] dark:bg-midnight border border-[#E2D9C8] dark:border-midnight-border text-emerald dark:text-emerald-light">
+                ₹{packageLpa} LPA
               </span>
             )}
+            {offer?.status === 'accepted' && (
+              <StampBadge variant="success" size="sm">
+                OFFER ACCEPTED
+              </StampBadge>
+            )}
           </div>
-          <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">{companyName}</p>
+          <p className="text-xs text-midnight/60 dark:text-brandMuted font-mono mt-0.5">
+            {companyName}
+          </p>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Badge variant={badgeVariant}>
+          <StampBadge variant={badgeVariant} size="sm">
             {currentStage.toUpperCase()}
-          </Badge>
-          {canWithdraw && (
+          </StampBadge>
+
+          {canWithdraw && !isWithdrawn && !offer && onWithdrawApplication && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => onWithdrawApplication(applicationId)}
-              className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/20"
+              className="text-xs text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 font-mono"
             >
-              Withdraw
+              Withdraw Application
             </Button>
           )}
         </div>
       </div>
 
-      {/* Horizontal Step Timeline */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+      {/* Ruled Milestone Stepper Grid */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stages.map((st, i) => {
           const isDone = st.status === 'done';
           const isCurrent = st.status === 'current';
+
           return (
             <div
               key={i}
-              className={`p-3 rounded-[6px] border text-xs space-y-1 ${
+              className={`p-3 rounded-[4px] border text-xs space-y-1 ${
                 isCurrent
-                  ? 'border-[#D9B36C] bg-[#D9B36C]/10 text-[var(--text-primary)]'
+                  ? 'border-amber-600/70 bg-amber-50/50 dark:bg-amber-950/20 text-midnight dark:text-ivory'
                   : isDone
-                  ? 'border-[var(--status-success-border)] bg-[var(--status-success-bg)] text-[var(--status-success-text)]'
-                  : 'border-[var(--border-color)] bg-[var(--bg-subtle)] text-[var(--text-muted)]'
+                  ? 'border-emerald-600/50 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-300'
+                  : 'border-[#E2D9C8] dark:border-midnight-border bg-[#FAF7F0] dark:bg-midnight/40 text-midnight/60 dark:text-brandMuted'
               }`}
             >
               <div className="flex items-center justify-between">
                 <span className="font-serif font-bold">{st.label}</span>
-                {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-[#0F7B5F]" />}
+                {isDone && <CheckCircle2 className="w-3.5 h-3.5 text-emerald" />}
               </div>
-              <div className="text-[11px] font-mono opacity-80">{st.detail || (isDone ? 'Completed' : 'Pending')}</div>
+              <div className="text-[11px] font-mono opacity-80">
+                {st.detail || (isDone ? 'Completed' : 'Pending')}
+              </div>
             </div>
           );
         })}
       </div>
 
-      {/* Real Offer Section */}
+      {/* Official Placement Offer Document Slip */}
       {offer && (
-        <div className={`mt-4 p-4 rounded-[8px] border ${
-          offer.status === 'accepted'
-            ? 'border-[#0F7B5F]/40 bg-[#0F7B5F]/10'
-            : offer.status === 'offered'
-            ? 'border-[var(--border-gold)] bg-[var(--bg-surface-elevated)]'
-            : 'border-[var(--border-color)] bg-[var(--bg-subtle)]'
-        } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}>
+        <div
+          className={`mt-4 p-4 rounded-[4px] border-2 ${
+            offer.status === 'accepted'
+              ? 'border-emerald-600/60 bg-emerald-50/60 dark:bg-emerald-950/30'
+              : offer.status === 'offered'
+              ? 'border-amber-600/70 bg-amber-50/60 dark:bg-amber-950/30'
+              : 'border-[#D9CEBA] dark:border-midnight-border bg-[#FAF7F0] dark:bg-midnight/60'
+          } flex flex-col sm:flex-row sm:items-center justify-between gap-4`}
+        >
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
+              <span className="font-serif font-bold text-sm text-midnight dark:text-ivory">
                 {offer.status === 'accepted'
-                  ? 'Placement Offer Accepted'
+                  ? 'Official Placement Offer Accepted'
                   : offer.status === 'declined'
-                  ? 'Offer Declined'
+                  ? 'Placement Offer Declined'
                   : offer.status === 'withdrawn'
-                  ? 'Offer Withdrawn by Recruiter'
+                  ? 'Placement Offer Withdrawn by Employer'
                   : 'Formal Placement Offer Extended'}
               </span>
-              <span className={`text-[10px] font-mono uppercase px-2 py-0.5 rounded-full font-bold ${
-                offer.status === 'accepted'
-                  ? 'bg-[#0F7B5F] text-white'
-                  : offer.status === 'offered'
-                  ? 'bg-[#D9B36C] text-[#0B1F1A]'
-                  : 'bg-stone-500 text-white'
-              }`}>
-                {offer.status}
-              </span>
+              <StampBadge
+                variant={
+                  offer.status === 'accepted'
+                    ? 'success'
+                    : offer.status === 'offered'
+                    ? 'gold'
+                    : 'danger'
+                }
+                size="sm"
+              >
+                {offer.status.toUpperCase()}
+              </StampBadge>
             </div>
 
-            <div className="text-xs text-[var(--text-primary)] font-medium mt-1">
-              Package: <span className="font-mono font-bold text-[#D9B36C]">{offer.package_lpa || packageLpa} LPA</span>
+            <div className="text-xs text-midnight dark:text-ivory font-medium mt-1">
+              Confirmed Package:{' '}
+              <span className="font-mono font-bold text-emerald dark:text-emerald-light">
+                ₹{offer.package_lpa || packageLpa} LPA
+              </span>
               {offer.joining_date && (
-                <span className="text-[var(--text-muted)]"> · Joining: {new Date(offer.joining_date).toLocaleDateString()}</span>
+                <span className="text-midnight/60 dark:text-brandMuted font-mono">
+                  {' '}
+                  • Joining Date: {new Date(offer.joining_date).toLocaleDateString()}
+                </span>
               )}
             </div>
 
             {offer.note && (
-              <p className="text-xs text-[var(--text-muted)] italic mt-1 bg-[var(--bg-app)]/50 p-2 rounded-[4px] border border-[var(--border-color)]">
+              <p className="text-xs text-midnight/80 dark:text-brandMuted italic mt-2 bg-white/70 dark:bg-midnight/70 p-2 rounded-[3px] border border-[#E2D9C8] dark:border-midnight-border">
                 "{offer.note}"
               </p>
             )}
@@ -138,17 +163,17 @@ export default function JourneyTimeline({
                 variant="secondary"
                 size="sm"
                 onClick={() => onDeclineOffer(offer)}
-                className="hover:border-red-500 hover:text-red-500"
+                className="hover:border-rose-600 hover:text-rose-600 font-mono text-xs"
               >
-                Decline
+                Decline Offer
               </Button>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => onAcceptOffer(offer)}
-                className="font-bold"
+                className="font-bold font-mono text-xs"
               >
-                Accept Offer
+                Accept Placement
               </Button>
             </div>
           )}

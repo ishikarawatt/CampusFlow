@@ -9,8 +9,8 @@ import { formatDate } from '../../utils.js';
 import { useToast } from '../../components/Toast.jsx';
 import Button from '../../components/Button.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
-import Badge from '../../components/Badge.jsx';
-import { Maximize2, Minimize2, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { StampBadge, AdmitCard, MarginNote } from '../../components/signature';
+import { Maximize2, Minimize2, AlertTriangle, Clock, CheckCircle, FileText, CheckCircle2 } from 'lucide-react';
 
 function mmss(totalSeconds) {
   const s = Math.max(0, Math.floor(totalSeconds));
@@ -110,34 +110,38 @@ export default function TestTaker() {
 
     return (
       <div className="max-w-xl mx-auto py-8">
-        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-8 shadow-subtle text-center space-y-4">
-          <div className="text-5xl">{result.already ? '📋' : passed ? '🎉' : '📊'}</div>
-          <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)]">
-            {result.already ? 'Assessment Already Submitted' : 'Assessment Completed'}
+        <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-8 shadow-xs text-center space-y-4">
+          <div className="flex justify-center">
+            <StampBadge variant={passed ? 'success' : 'neutral'} size="lg" tilt>
+              {result.already ? 'OFFICIALLY SUBMITTED' : passed ? 'QUALIFIED FOR INTERVIEW' : 'EVALUATED RECORD'}
+            </StampBadge>
+          </div>
+          <h2 className="text-2xl font-serif font-bold text-midnight dark:text-ivory">
+            {result.already ? 'Assessment Record Archived' : 'Examination Completed'}
           </h2>
           <div
             className={`text-5xl font-mono font-bold my-4 ${
-              passed ? 'text-[#0F7B5F] dark:text-[#4ADE80]' : 'text-[var(--text-secondary)]'
+              passed ? 'text-emerald dark:text-emerald-light' : 'text-midnight/70 dark:text-brandMuted'
             }`}
           >
             {pct.toFixed(1)}%
           </div>
-          <p className="text-xs font-mono text-[var(--text-muted)]">
-            {Number(result.score)} / {Number(result.total)} Marks
-            {result.submitted_at && ` · Submitted ${formatDate(result.submitted_at)}`}
+          <p className="text-xs font-mono text-midnight/60 dark:text-brandMuted">
+            SCORE: {Number(result.score)} / {Number(result.total)} MARKS
+            {result.submitted_at && ` • RECORDED ${formatDate(result.submitted_at)}`}
           </p>
 
           {!result.already && (
-            <p className="text-xs text-[var(--text-secondary)] bg-[var(--bg-subtle)] p-3 rounded-[6px] border border-[var(--border-color)]">
+            <div className="p-3 bg-[#FAF7F0] dark:bg-midnight rounded-[4px] border border-[#E2D9C8] dark:border-midnight-border text-xs text-midnight/80 dark:text-brandMuted">
               {passed
-                ? 'Your score is above the cutoff. You are in the candidate pool for interview shortlisting.'
-                : 'Score is below cutoff for this round. Keep preparing for future drives.'}
-            </p>
+                ? 'Score meets or exceeds the institutional cutoff threshold. You are in the verified pool for technical interviews.'
+                : 'Score is below the minimum qualifying cutoff for this drive.'}
+            </div>
           )}
 
           <div className="pt-4">
             <Link to="/student/journey">
-              <Button variant="primary">Return to My Journey</Button>
+              <Button variant="primary">Return to My Journey Track</Button>
             </Link>
           </div>
         </div>
@@ -148,10 +152,10 @@ export default function TestTaker() {
   if (!questions.length) {
     return (
       <div className="max-w-xl mx-auto py-8">
-        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-8 text-center space-y-4">
-          <p className="text-sm text-[var(--text-muted)]">This drive has no questions configured yet.</p>
+        <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-8 text-center space-y-4">
+          <p className="text-sm font-mono text-midnight/50 dark:text-brandMuted">This drive has no test question set configured.</p>
           <Link to="/student/drives">
-            <Button variant="secondary">Back to Drives</Button>
+            <Button variant="secondary">Back to Approved Drives</Button>
           </Link>
         </div>
       </div>
@@ -162,39 +166,33 @@ export default function TestTaker() {
   if (!started) {
     return (
       <div className="max-w-xl mx-auto py-8">
-        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-8 shadow-subtle space-y-6">
-          <div className="border-b border-[var(--border-color)] pb-4">
-            <Badge variant="gold">Aptitude Assessment</Badge>
-            <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)] mt-2">
-              {paper.drive?.title}
-            </h2>
-            {paper.session && (
-              <p className="text-xs font-mono text-[var(--text-muted)] mt-1">
-                📍 {paper.session.title} · {formatDate(paper.session.starts_at)}
-              </p>
-            )}
-          </div>
-
-          <ul className="space-y-3 text-xs font-mono text-[var(--text-secondary)]">
-            <li className="flex items-center gap-2">
-              <span className="text-[#D9B36C]">●</span> {questions.length} Multiple-choice questions.
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-[#D9B36C]">●</span> {paper.drive?.test_duration_min} Minutes countdown timer. Auto-submits on expiry.
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-[#D9B36C]">●</span> Single attempt. Instant automated evaluation.
-            </li>
-            <li className="flex items-center gap-2">
-              <span className="text-[#D9B36C]">●</span> Do not refresh the page during test execution.
-            </li>
-          </ul>
-
-          <div className="pt-2">
-            <Button variant="primary" size="lg" className="w-full" onClick={start}>
-              Begin Assessment →
+        <AdmitCard
+          serialNumber={`ADMIT-${driveId}`}
+          title={paper.drive?.title || 'Aptitude Examination'}
+          subTitle={paper.drive?.company?.name || 'Recruitment Partner'}
+          date={paper.session?.starts_at ? formatDate(paper.session.starts_at).split(',')[0] : 'Today'}
+          time={paper.session?.starts_at ? formatDate(paper.session.starts_at).split(', ')[1] : 'Scheduled'}
+          venue={paper.session?.venue || 'Assigned Computer Laboratory'}
+          status="READY"
+          statusLabel="AUTHORIZED ENTRY"
+          statusVariant="gold"
+          metaItems={[
+            { label: 'QUESTIONS', value: `${questions.length} Items` },
+            { label: 'TIME LIMIT', value: `${paper.drive?.test_duration_min || 60} Minutes` },
+            { label: 'PASS CUTOFF', value: `${paper.drive?.min_test_score || 50}%` },
+            { label: 'PROCTORING', value: 'SECURE KERNEL' },
+          ]}
+          actionSlot={
+            <Button variant="primary" size="lg" className="w-full font-mono text-xs font-bold" onClick={start}>
+              Begin Timed Assessment →
             </Button>
-          </div>
+          }
+        />
+
+        <div className="mt-4">
+          <MarginNote title="SUPERVISOR NOTICE" variant="gold">
+            Once initiated, the session timer runs continuously. Terminals reporting unauthorized window focus switches or background process violations will be immediately flagged for supervisor review.
+          </MarginNote>
         </div>
       </div>
     );

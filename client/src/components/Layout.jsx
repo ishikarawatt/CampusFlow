@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-do
 import { useAuth } from '../auth.jsx';
 import { useTheme } from '../context/ThemeContext.jsx';
 import Badge from './Badge.jsx';
+import StampBadge from './signature/StampBadge.jsx';
 import NotificationsBell from './NotificationsBell.jsx';
 import CommandPalette from './CommandPalette.jsx';
 import {
@@ -382,9 +383,9 @@ export default function Layout() {
 
               {/* Role Badge */}
               <div className="hidden sm:block">
-                <Badge variant={role === 'admin' ? 'danger' : role === 'recruiter' ? 'gold' : 'success'}>
+                <StampBadge variant={role === 'admin' ? 'danger' : role === 'recruiter' ? 'gold' : 'success'} size="sm">
                   {role.toUpperCase()}
-                </Badge>
+                </StampBadge>
               </div>
 
               {/* Profile Menu */}

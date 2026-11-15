@@ -32,9 +32,9 @@ export default {
         brandMuted: '#B9C7C1',
       },
       fontFamily: {
-        serif: ['"Playfair Display"', 'Georgia', 'serif'],
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
+        serif: ['"Fraunces"', '"Playfair Display"', 'Georgia', 'serif'],
+        sans: ['"DM Sans"', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        display: ['"Fraunces"', '"Playfair Display"', 'Georgia', 'serif'],
         mono: ['"JetBrains Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
