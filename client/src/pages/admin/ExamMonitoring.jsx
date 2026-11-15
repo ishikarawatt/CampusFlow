@@ -1,19 +1,24 @@
-// Exam Monitoring Admin Page — real-time physical exam PC supervision.
-// Redesigned with the Midnight x Emerald x Champagne Gold visual identity:
-// Stat strip with count-up numbers, lab-grouped PC cards with live pulse dots,
-// and side drawer for telemetry review with real Socket.IO integration.
+// Exam Monitoring Admin Page — Real-time physical exam PC supervision.
+// Built with the Campus Registrar Visual Language:
+// SeatMap floor plan with physical desk glyphs, ControlRoomTicker live feed,
+// LedgerStrip telemetry KPIs, and side inspector drawer with mandatory human-review notice.
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { examMonitoring, errMsg } from '../../api';
-import StatCard from '../../components/StatCard';
-import Badge from '../../components/Badge';
 import EmptyState from '../../components/EmptyState';
 import { useToast } from '../../components/Toast';
 import Button from '../../components/Button';
 import Skeleton from '../../components/Skeleton';
 import PageHeader from '../../components/PageHeader';
-import { MonitorCheck, Server, AlertTriangle, Activity, RefreshCw, X, ShieldAlert, Cpu } from 'lucide-react';
+import {
+  LedgerStrip,
+  SeatMap,
+  ControlRoomTicker,
+  StampBadge,
+  MarginNote,
+} from '../../components/signature';
+import { MonitorCheck, Server, AlertTriangle, RefreshCw, X, ShieldAlert } from 'lucide-react';
 
 export default function ExamMonitoring() {
   const { toast } = useToast();
@@ -35,7 +40,7 @@ export default function ExamMonitoring() {
       setPcs(pcRes.data);
       setEvents(eventRes.data);
     } catch (err) {
-      toast(errMsg(err, 'Failed to load monitoring data.'), 'error');
+      toast(errMsg(err, 'Failed to load monitoring data.'), 'danger');
     } finally {
       setLoading(false);
     }
@@ -48,7 +53,7 @@ export default function ExamMonitoring() {
   // Connect to live Socket.IO feed
   useEffect(() => {
     const token = localStorage.getItem('campusflow_token');
-    const socket = io({
+    const socket = io('/', {
       auth: { token },
       transports: ['websocket', 'polling'],
     });
@@ -61,8 +66,8 @@ export default function ExamMonitoring() {
       setSocketConnected(false);
     });
 
-    // Real-time agent status changes
-    socket.on('agent:status', (data) => {
+    // Real-time PC heartbeat updates
+    socket.on('agent:heartbeat', (data) => {
       setPcs((prevPcs) =>
         prevPcs.map((pc) => {
           if (pc.id === data.computer_id) {
@@ -129,7 +134,13 @@ export default function ExamMonitoring() {
     pcs.forEach((pc) => {
       const labName = pc.lab_name || 'General Terminal Pool';
       if (!groups[labName]) groups[labName] = [];
-      groups[labName].push(pc);
+      groups[labName].push({
+        ...pc,
+        is_flagged: (Number(pc.unreviewed_events_count) || 0) > 0,
+        status: pc.agent_status === 'online' ? 'online' : pc.computer_status || 'offline',
+        is_allocated: Boolean(pc.active_session_id),
+        current_student_name: pc.student_name,
+      });
     });
     return groups;
   }, [pcs]);
@@ -162,8 +173,8 @@ export default function ExamMonitoring() {
         )
       );
 
-      setPcs((prev) =>
-        prev.map((pc) => {
+      setPcs((prevPcs) =>
+        prevPcs.map((pc) => {
           if (pc.id === selectedPcId) {
             return {
               ...pc,
@@ -174,10 +185,10 @@ export default function ExamMonitoring() {
         })
       );
 
+      toast(`Event flagged as ${action}.`, 'success');
       setReviewNote('');
-      toast(`Event marked as ${action}.`, 'success');
     } catch (err) {
-      toast(errMsg(err, 'Failed to update review status.'), 'error');
+      toast(errMsg(err, 'Failed to update review status.'), 'danger');
     } finally {
       setSubmittingReview(false);
     }
@@ -185,35 +196,15 @@ export default function ExamMonitoring() {
 
   const activeCount = pcs.filter((p) => p.agent_status === 'online').length;
   const inSessionCount = pcs.filter((p) => Boolean(p.active_session_id)).length;
-  const flagCount = events.filter((e) => e.review_status === 'new').length;
-
-  const eventBadgeVariant = (type) => {
-    switch (type) {
-      case 'PROHIBITED_PROCESS':
-        return 'danger';
-      case 'FOCUS_LOST':
-      case 'WINDOW_MINIMIZED':
-      case 'WINDOW_CLOSED':
-        return 'warning';
-      case 'AGENT_DISCONNECTED':
-        return 'danger';
-      case 'AGENT_RECONNECTED':
-        return 'success';
-      default:
-        return 'info';
-    }
-  };
+  const flagCount = pcs.filter((p) => (Number(p.unreviewed_events_count) || 0) > 0).length;
+  const totalEventsCount = events.filter((e) => e.review_status === 'new').length;
 
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-16 w-full rounded-[10px]" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-[10px]" />
-          ))}
-        </div>
-        <Skeleton className="h-96 rounded-[10px]" />
+        <Skeleton className="h-16 w-full rounded-[6px]" />
+        <Skeleton className="h-24 w-full rounded-[6px]" />
+        <Skeleton className="h-96 rounded-[6px]" />
       </div>
     );
   }
@@ -221,7 +212,7 @@ export default function ExamMonitoring() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Exam Monitoring"
+        title="Exam Supervision Console"
         subtitle="Real-time physical PC telemetry and proctoring event supervision."
         breadcrumbs={[
           { label: 'Admin', to: '/admin' },
@@ -229,14 +220,14 @@ export default function ExamMonitoring() {
         ]}
         actions={
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[6px] text-xs font-mono bg-[var(--bg-surface)] border border-[var(--border-color)]">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-[4px] text-xs font-mono bg-white dark:bg-midnight-surface border border-[#D9CEBA] dark:border-midnight-border">
               <span
                 className={`w-2 h-2 rounded-full ${
-                  socketConnected ? 'bg-[#0F7B5F] cf-live-pulse' : 'bg-[#9E3524]'
+                  socketConnected ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'
                 }`}
               />
-              <span className="text-[var(--text-muted)]">
-                {socketConnected ? 'Live Socket Stream' : 'Connecting to Stream…'}
+              <span className="text-midnight/70 dark:text-brandMuted">
+                {socketConnected ? 'LIVE SOCKET STREAM' : 'CONNECTING...'}
               </span>
             </div>
 
@@ -252,35 +243,44 @@ export default function ExamMonitoring() {
         }
       />
 
-      {/* Stats KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          label="Active Terminals"
-          value={activeCount}
-          icon={<MonitorCheck className="w-5 h-5" />}
-        />
-        <StatCard
-          label="In Exam Session"
-          value={inSessionCount}
-          icon={<Server className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Pending Review"
-          value={flagCount}
-          icon={<AlertTriangle className="w-5 h-5" />}
-        />
-        <StatCard
-          label="Total Terminals"
-          value={pcs.length}
-          icon={<Activity className="w-5 h-5" />}
-        />
-      </div>
+      {/* 1. Archival Ledger Strip (Replacing StatCards) */}
+      <LedgerStrip
+        items={[
+          {
+            label: 'ONLINE WORKSTATIONS',
+            value: activeCount,
+            unit: `/ ${pcs.length}`,
+            trend: activeCount > 0 ? 'up' : null,
+            subtext: `${pcs.length - activeCount} offline terminals`,
+          },
+          {
+            label: 'CANDIDATES IN SESSION',
+            value: inSessionCount,
+            unit: 'Active',
+            subtext: 'Proctored by Secure Kernel',
+          },
+          {
+            label: 'TERMINALS FLAGGED',
+            value: flagCount,
+            unit: 'PCs',
+            badge: flagCount > 0 ? 'REVIEW REQD' : undefined,
+            subtext: 'Contain unreviewed flags',
+          },
+          {
+            label: 'UNREVIEWED ANOMALIES',
+            value: totalEventsCount,
+            unit: 'Flags',
+            subtext: 'Awaiting human proctor review',
+          },
+        ]}
+      />
 
-      {/* Main Grid: Lab Groupings & PC Cards */}
+      {/* 2. Main Floor Plan & Side Inspector Drawer */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        {/* Left 2 Cols: Floor Plans per Lab + Live ControlRoomTicker */}
         <div className={`${selectedPc ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-6`}>
           {Object.keys(labGroups).length === 0 ? (
-            <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-8">
+            <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-8">
               <EmptyState
                 title="No Exam Terminals Enrolled"
                 message="Enroll student workstations via the Exam PCs administration tab."
@@ -288,220 +288,150 @@ export default function ExamMonitoring() {
             </div>
           ) : (
             Object.entries(labGroups).map(([labName, labPcs]) => (
-              <div
+              <SeatMap
                 key={labName}
-                className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-subtle"
-              >
-                <div className="flex items-center justify-between pb-3.5 mb-4 border-b border-[var(--border-color)]">
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-serif font-bold text-base text-[var(--text-primary)]">
-                      {labName}
-                    </h2>
-                    <span className="text-xs font-mono text-[var(--text-muted)]">
-                      ({labPcs.length} workstations)
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-muted)]">
-                    <span className="w-2 h-2 rounded-full bg-[#0F7B5F]" />
-                    <span>{labPcs.filter((p) => p.agent_status === 'online').length} online</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3.5">
-                  {labPcs.map((pc) => {
-                    const isSelected = selectedPcId === pc.id;
-                    const isOnline = pc.agent_status === 'online';
-                    const hasActiveSession = Boolean(pc.active_session_id);
-                    const unreviewedCount = Number(pc.unreviewed_events_count) || 0;
-
-                    return (
-                      <div
-                        key={pc.id}
-                        onClick={() => setSelectedPcId(isSelected ? null : pc.id)}
-                        className={`cursor-pointer rounded-[8px] p-4 border transition-all text-left relative ${
-                          isSelected
-                            ? 'border-[#D9B36C] bg-[var(--bg-subtle)] shadow-panel'
-                            : 'border-[var(--border-color)] bg-[var(--bg-surface-elevated)] hover:border-[#0F7B5F]'
-                        }`}
-                      >
-                        {/* Terminal Header */}
-                        <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-[var(--border-color)]/60">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-2 h-2 rounded-full shrink-0 ${
-                                isOnline ? 'bg-[#0F7B5F] cf-live-pulse' : 'bg-[var(--text-muted)] opacity-50'
-                              }`}
-                            />
-                            <span className="font-mono font-bold text-xs text-[var(--text-primary)]">
-                              {pc.pc_code}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            {unreviewedCount > 0 && (
-                              <Badge variant="danger">{unreviewedCount} flags</Badge>
-                            )}
-                            <Badge variant={isOnline ? 'success' : 'neutral'}>
-                              {isOnline ? 'ONLINE' : 'OFFLINE'}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        {/* Candidate Session info */}
-                        <div className="py-2.5 text-xs space-y-1">
-                          {hasActiveSession ? (
-                            <div>
-                              <div className="font-serif font-bold text-[var(--text-primary)] truncate">
-                                {pc.student_name || 'Student Candidate'}
-                              </div>
-                              <div className="text-[11px] font-mono text-[var(--text-muted)]">
-                                Roll: {pc.roll_no || '—'} · Status: {pc.session_status}
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="italic text-[var(--text-muted)] py-0.5">
-                              No active candidate session
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Foreground Process & Window Telemetry */}
-                        <div className="pt-2 border-t border-[var(--border-color)]/60 text-[11px] font-mono space-y-0.5">
-                          <div className="text-[var(--text-muted)] truncate">
-                            Proc: <span className="text-[var(--text-primary)] font-semibold">{pc.last_foreground_process || 'idle'}</span>
-                          </div>
-                          <div className="text-[var(--text-muted)] truncate" title={pc.last_foreground_title || ''}>
-                            Win: <span className="text-[var(--text-secondary)]">{pc.last_foreground_title || '—'}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                pcs={labPcs}
+                selectedPcId={selectedPcId}
+                onSelectPc={(pc) => setSelectedPcId(pc.id === selectedPcId ? null : pc.id)}
+                columnsCount={5}
+              />
             ))
           )}
+
+          {/* Real-time Monospaced Ruled Live Telemetry Feed */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-mono tracking-wider uppercase text-midnight/50 dark:text-brandMuted font-bold">
+                AUDIT TELEMETRY LOG
+              </span>
+              <span className="text-xs font-mono text-emerald dark:text-emerald-light">
+                {events.length} Events Logged
+              </span>
+            </div>
+            <ControlRoomTicker
+              events={events}
+              onReview={(ev) => {
+                setSelectedPcId(ev.computer_id);
+              }}
+            />
+          </div>
         </div>
 
-        {/* Side Panel: Selected PC Details & Live Anomaly Audit */}
+        {/* Right 1 Col: Selected PC Inspector Drawer */}
         {selectedPc && (
-          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-panel space-y-5 lg:col-span-1 self-start cf-transition">
-            <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+          <div className="bg-white dark:bg-midnight-surface rounded-[6px] border-2 border-emerald-700/40 dark:border-emerald-500/40 p-5 shadow-panel space-y-5 lg:col-span-1 self-start">
+            <div className="flex items-center justify-between border-b border-[#E8E0D0] dark:border-midnight-border pb-3">
               <div>
-                <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+                <span className="text-[10px] font-mono text-midnight/50 dark:text-brandMuted uppercase tracking-wider">
+                  TERMINAL INSPECTOR
+                </span>
+                <h3 className="font-serif font-bold text-lg text-midnight dark:text-ivory">
                   {selectedPc.pc_code}
                 </h3>
-                <p className="text-xs font-mono text-[var(--text-muted)]">
-                  {selectedPc.lab_name} · Host: {selectedPc.hostname || 'Unknown'}
+                <p className="text-xs font-mono text-midnight/60 dark:text-brandMuted">
+                  {selectedPc.lab_name} • Host: {selectedPc.hostname || 'Unknown'}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedPcId(null)}
-                className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded-[4px]"
+                className="text-midnight/60 dark:text-brandMuted hover:text-midnight p-1 rounded"
                 aria-label="Close inspector"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* MANDATORY PROCTORING TEXT NOTICE */}
-            <div className="p-3.5 bg-[var(--status-warning-bg)] border border-[var(--status-warning-border)] rounded-[6px] text-xs text-[var(--status-warning-text)] leading-relaxed font-medium">
+            {/* MANDATORY PROCTORING TEXT NOTICE - MUST BE PRESERVED */}
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-600/40 rounded-[4px] text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
               ⚠️ <strong>Notice:</strong> Flags need human review; they are not proof of cheating.
             </div>
 
-            {/* Current Session Snapshot */}
-            <div className="bg-[var(--bg-subtle)] p-3.5 rounded-[6px] text-xs space-y-1.5 border border-[var(--border-color)]">
-              <div className="font-serif font-bold text-[var(--text-primary)]">Exam Session Info</div>
-              <div className="text-[var(--text-secondary)]">
-                Student: <strong>{selectedPc.student_name || 'None'}</strong>
+            {/* Session Snapshot */}
+            <div className="bg-[#FAF7F0] dark:bg-midnight p-3.5 rounded-[4px] text-xs space-y-1.5 border border-[#E2D9C8] dark:border-midnight-border">
+              <div className="font-serif font-bold text-midnight dark:text-ivory">Active Session State</div>
+              <div className="text-midnight/80 dark:text-brandMuted">
+                Candidate: <strong className="text-midnight dark:text-ivory">{selectedPc.student_name || 'Unassigned'}</strong>
               </div>
-              <div className="text-[var(--text-secondary)] font-mono text-[11px]">
+              <div className="text-midnight/70 dark:text-brandMuted font-mono text-[11px]">
                 Keyword: <code>{selectedPc.exam_window_keyword || 'CampusFlow'}</code>
               </div>
-              <div className="text-[var(--text-secondary)] font-mono text-[11px]">
-                Agent Version: {selectedPc.agent_version || '1.0.0'}
+              <div className="text-midnight/70 dark:text-brandMuted font-mono text-[11px]">
+                Proctor Daemon: {selectedPc.agent_version || '1.0.0'}
+              </div>
+              <div className="text-midnight/70 dark:text-brandMuted font-mono text-[11px] truncate">
+                Window: {selectedPc.last_foreground_title || 'None'}
               </div>
             </div>
 
-            {/* Event History */}
+            {/* Terminal Anomaly History */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  Telemetry Events ({selectedPcEvents.length})
+                <span className="font-mono text-xs font-semibold uppercase tracking-wider text-midnight/60 dark:text-brandMuted">
+                  Terminal Events ({selectedPcEvents.length})
                 </span>
               </div>
 
               {selectedPcEvents.length === 0 ? (
-                <div className="py-6 text-center text-xs text-[var(--text-muted)] bg-[var(--bg-subtle)] rounded-[6px]">
-                  No anomalies reported for this terminal.
+                <div className="py-6 text-center text-xs font-mono text-midnight/40 dark:text-brandMuted bg-[#FAF7F0] dark:bg-midnight rounded-[4px]">
+                  No anomalies recorded for this terminal.
                 </div>
               ) : (
-                <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1 slim-scroll">
+                <div className="space-y-3 max-h-[360px] overflow-y-auto pr-1">
                   {selectedPcEvents.map((ev) => (
                     <div
                       key={ev.id}
-                      className="p-3 bg-[var(--bg-surface)] border border-[var(--border-color)] rounded-[6px] text-xs space-y-2 shadow-subtle"
+                      className="p-3 bg-[#FAF7F0] dark:bg-midnight border border-[#E2D9C8] dark:border-midnight-border rounded-[4px] space-y-2 text-xs"
                     >
                       <div className="flex items-center justify-between">
-                        <Badge variant={eventBadgeVariant(ev.event_type)}>
+                        <StampBadge
+                          variant={
+                            ev.review_status === 'dismissed'
+                              ? 'neutral'
+                              : ev.review_status === 'confirmed'
+                              ? 'danger'
+                              : 'warning'
+                          }
+                          size="sm"
+                        >
                           {ev.event_type}
-                        </Badge>
-                        <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                          {new Date(ev.occurred_at).toLocaleTimeString()}
+                        </StampBadge>
+                        <span className="font-mono text-[10px] text-midnight/50 dark:text-brandMuted">
+                          {formatDate(ev.created_at)}
                         </span>
                       </div>
 
-                      <div className="space-y-0.5 text-[var(--text-secondary)] font-mono text-[11px]">
-                        <div>
-                          Proc: <span className="text-[var(--text-primary)] font-semibold">{ev.process_name || '—'}</span>
-                        </div>
-                        <div className="truncate font-sans" title={ev.window_title}>
-                          Title: <span className="text-[var(--text-primary)]">{ev.window_title || '—'}</span>
-                        </div>
-                        {ev.review_note && (
-                          <div className="italic text-[var(--text-muted)] pt-1 font-sans">
-                            Note: "{ev.review_note}"
-                          </div>
-                        )}
-                      </div>
+                      <p className="font-mono text-[11px] text-midnight dark:text-ivory">
+                        {ev.details || ev.window_title || ev.process_name || 'Violation recorded'}
+                      </p>
 
-                      {/* Review Buttons */}
                       {ev.review_status === 'new' ? (
-                        <div className="pt-2 border-t border-[var(--border-color)] space-y-2">
+                        <div className="pt-2 border-t border-[#E8E0D0] dark:border-midnight-border flex items-center gap-2">
                           <input
                             type="text"
-                            placeholder="Add human review note (optional)..."
+                            placeholder="Proctor review note..."
                             value={reviewNote}
                             onChange={(e) => setReviewNote(e.target.value)}
-                            className="w-full text-xs px-2.5 py-1.5 rounded-[4px] border border-[var(--border-color)] bg-[var(--bg-surface-elevated)] text-[var(--text-primary)] focus:outline-none focus:border-[#D9B36C]"
+                            className="flex-1 px-2 py-1 text-[11px] rounded border border-[#C8BDA7] dark:border-midnight-border bg-white dark:bg-midnight text-midnight dark:text-ivory font-mono"
                           />
-                          <div className="flex gap-2">
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              disabled={submittingReview}
-                              onClick={() => handleReview(ev.id, 'dismissed')}
-                              className="flex-1 py-1 text-xs"
-                            >
-                              Dismiss
-                            </Button>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              disabled={submittingReview}
-                              onClick={() => handleReview(ev.id, 'reviewed')}
-                              className="flex-1 py-1 text-xs"
-                            >
-                              Confirm
-                            </Button>
-                          </div>
+                          <button
+                            onClick={() => handleReview(ev.id, 'dismissed')}
+                            disabled={submittingReview}
+                            className="px-2 py-1 text-[10px] font-mono border border-emerald-600 text-emerald-800 dark:text-emerald-300 rounded hover:bg-emerald-50"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            onClick={() => handleReview(ev.id, 'confirmed')}
+                            disabled={submittingReview}
+                            className="px-2 py-1 text-[10px] font-mono bg-rose-600 text-white rounded hover:bg-rose-700"
+                          >
+                            Confirm Flag
+                          </button>
                         </div>
                       ) : (
-                        <div className="pt-1.5 border-t border-[var(--border-color)] flex items-center justify-between text-[11px]">
-                          <span className="text-[var(--text-muted)]">Status:</span>
-                          <span className="font-mono uppercase font-semibold text-[var(--brand-primary)]">
-                            {ev.review_status}
-                          </span>
+                        <div className="text-[10px] font-mono text-midnight/50 dark:text-brandMuted">
+                          Reviewed as: <strong>{ev.review_status}</strong>
+                          {ev.review_note && ` — "${ev.review_note}"`}
                         </div>
                       )}
                     </div>

@@ -1,4 +1,6 @@
-// Recruiter Inbox — Dedicated notification & candidate event activity stream.
+// Recruiter Inbox — Institutional Dispatch & Candidate Event Activity Stream
+// Upgraded to Campus Registrar visual language:
+// Ruled ledger stream with unread markers, mono timestamps, and StampBadge categories.
 
 import React, { useEffect, useState } from 'react';
 import { notifications as notifApi, errMsg } from '../../api.js';
@@ -7,8 +9,8 @@ import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Button from '../../components/Button.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
-import EmptyState from '../../components/EmptyState.jsx';
-import { Mail, CheckCheck, BellRing, Sparkles } from 'lucide-react';
+import { StampBadge, MarginNote } from '../../components/signature';
+import { Mail, CheckCheck, Bell } from 'lucide-react';
 
 export default function RecruiterInbox() {
   const { toast } = useToast();
@@ -22,7 +24,7 @@ export default function RecruiterInbox() {
       const notifs = data?.notifications ?? (Array.isArray(data) ? data : []);
       setItems(notifs);
     } catch (err) {
-      toast(errMsg(err, 'Could not load messages.'), 'error');
+      toast(errMsg(err, 'Could not load messages.'), 'danger');
     } finally {
       setLoading(false);
     }
@@ -40,7 +42,7 @@ export default function RecruiterInbox() {
       setItems((prev) => prev.map((it) => ({ ...it, is_read: true })));
       toast('All messages marked as read.', 'success');
     } catch (err) {
-      toast(errMsg(err, 'Failed to update messages.'), 'error');
+      toast(errMsg(err, 'Failed to update messages.'), 'danger');
     } finally {
       setMarking(false);
     }
@@ -48,9 +50,9 @@ export default function RecruiterInbox() {
 
   if (loading) {
     return (
-      <div className="space-y-6 max-w-4xl">
-        <Skeleton className="h-16 w-full rounded-[10px]" />
-        <Skeleton className="h-48 w-full rounded-[10px]" />
+      <div className="space-y-4 max-w-4xl">
+        <Skeleton className="h-16 w-full rounded-[6px]" />
+        <Skeleton className="h-48 w-full rounded-[6px]" />
       </div>
     );
   }
@@ -60,8 +62,8 @@ export default function RecruiterInbox() {
   return (
     <div className="space-y-6 max-w-4xl">
       <PageHeader
-        title="Inbox"
-        subtitle="Live announcements, interview schedules, and applicant event updates."
+        title="Registrar Dispatch Inbox"
+        subtitle="Live announcements, exam completions, and candidate milestone alerts."
         breadcrumbs={[
           { label: 'Recruiter', to: '/recruiter' },
           { label: 'Inbox' },
@@ -81,78 +83,79 @@ export default function RecruiterInbox() {
         }
       />
 
-      {items.length === 0 ? (
-        <div className="space-y-6">
-          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-[6px] bg-[#0F7B5F]/15 border border-[#0F7B5F]/30 flex items-center justify-center text-[#0F7B5F] shrink-0">
-                <BellRing className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
-                  Recruiter Activity Stream Active
-                </h3>
-                <p className="text-xs text-[var(--text-muted)] font-mono">
-                  Real-time pipeline notifications will appear here as students apply, complete tests, and attend interviews.
-                </p>
-              </div>
-            </div>
+      <MarginNote title="INSTITUTIONAL EVENT LOG" variant="neutral">
+        Automated telemetry logs and applicant submission notices are permanently archived in the Placement Office ledger. Unread notices are indicated by amber status pins.
+      </MarginNote>
 
-            <div className="p-4 rounded-[6px] border border-[var(--border-gold)] bg-[var(--brand-accent)]/10 text-xs text-[var(--text-secondary)] font-mono flex items-start gap-2.5 mt-4">
-              <Sparkles className="w-4 h-4 text-[#D9B36C] shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-[var(--text-primary)] block mb-0.5">Automated Event Tracking Enabled</span>
-                When students take their aptitude tests or interview panels are generated, you will receive instant notifications in this feed and via the navigation bell.
-              </div>
-            </div>
+      {items.length === 0 ? (
+        <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-8 text-center space-y-3">
+          <div className="w-10 h-10 rounded-full bg-[#FAF7F0] dark:bg-midnight border border-[#D9CEBA] dark:border-midnight-border flex items-center justify-center text-midnight/50 dark:text-brandMuted mx-auto">
+            <Bell className="w-5 h-5" />
           </div>
+          <h3 className="font-serif font-bold text-base text-midnight dark:text-ivory">
+            Dispatch Log Empty
+          </h3>
+          <p className="text-xs font-mono text-midnight/60 dark:text-brandMuted max-w-md mx-auto">
+            No pipeline events recorded. Automated notices will arrive as candidates submit answers, attend interviews, or accept formal offers.
+          </p>
         </div>
       ) : (
-        <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
-          <ul className="divide-y divide-[var(--border-color)]">
+        <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border overflow-hidden">
+          <div className="px-4 py-2.5 bg-[#FAF7F0] dark:bg-midnight-dark border-b border-[#E8E0D0] dark:border-midnight-border flex items-center justify-between text-xs font-mono">
+            <span className="text-[10px] uppercase tracking-wider text-midnight/60 dark:text-brandMuted font-bold">
+              OFFICIAL DISPATCH STREAM ({items.length} RECORDS)
+            </span>
+            <span className="text-[10px] text-amber-700 dark:text-amber-400 font-bold">
+              {unreadCount} UNREAD
+            </span>
+          </div>
+
+          <div className="divide-y divide-[#EFE9DC] dark:divide-midnight-border">
             {items.map((it) => {
               const isUnread = !it.is_read;
+              const type = (it.type || 'NOTICE').toUpperCase();
+              let stampVariant = 'neutral';
+              if (type.includes('OFFER') || type.includes('SELECT')) stampVariant = 'gold';
+              else if (type.includes('TEST') || type.includes('APPLY')) stampVariant = 'success';
+              else if (type.includes('ALERT') || type.includes('REJECT')) stampVariant = 'danger';
+
               return (
-                <li
+                <div
                   key={it.id}
-                  className={`p-4 sm:p-5 flex items-start gap-4 transition-colors ${
-                    isUnread ? 'bg-[var(--brand-accent)]/10' : 'hover:bg-[var(--bg-subtle)]'
+                  className={`p-4 flex items-start gap-4 transition-colors ${
+                    isUnread ? 'bg-amber-50/40 dark:bg-amber-950/20' : 'hover:bg-[#FAF7F0] dark:hover:bg-midnight/50'
                   }`}
                 >
-                  <div
-                    className={`w-9 h-9 rounded-[6px] flex items-center justify-center shrink-0 ${
-                      isUnread
-                        ? 'bg-[#D9B36C] text-[#0B1F1A]'
-                        : 'bg-[var(--bg-subtle)] text-[var(--text-muted)] border border-[var(--border-color)]'
-                    }`}
-                  >
-                    <Mail className="w-4 h-4" />
+                  <div className="pt-0.5 shrink-0">
+                    {isUnread ? (
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 block ring-2 ring-amber-400/30"></span>
+                    ) : (
+                      <span className="w-2.5 h-2.5 rounded-full bg-gray-300 dark:bg-midnight-border block"></span>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p
-                        className={`text-sm ${
-                          isUnread
-                            ? 'font-bold text-[var(--text-primary)] font-serif'
-                            : 'font-medium text-[var(--text-secondary)] font-serif'
-                        }`}
-                      >
-                        {it.title || 'System Notification'}
-                      </p>
-                      <span className="text-[11px] font-mono text-[var(--text-muted)] shrink-0">
-                        {it.created_at ? formatDate(it.created_at) : 'Recent'}
+
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <StampBadge variant={stampVariant} size="sm">
+                        {type}
+                      </StampBadge>
+                      <span className="text-[11px] font-mono text-midnight/50 dark:text-brandMuted">
+                        {it.created_at ? formatDate(it.created_at) : 'Recorded'}
                       </span>
                     </div>
-                    {it.body && (
-                      <p className="text-xs text-[var(--text-secondary)] mt-1 font-sans leading-relaxed">
-                        {it.body}
+                    <p className="text-sm font-serif text-midnight dark:text-ivory leading-snug">
+                      {it.title || it.message || it.text || 'Placement Notice'}
+                    </p>
+                    {it.details && (
+                      <p className="text-xs text-midnight/70 dark:text-brandMuted font-mono">
+                        {it.details}
                       </p>
                     )}
                   </div>
-                </li>
+                </div>
               );
             })}
-          </ul>
+          </div>
         </div>
       )}
     </div>

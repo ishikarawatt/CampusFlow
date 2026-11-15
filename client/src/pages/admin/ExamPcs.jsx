@@ -4,12 +4,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { examMonitoring, resources as resourcesApi, users as usersApi, drives as drivesApi, errMsg } from '../../api';
 import DataTable from '../../components/DataTable';
-import Badge from '../../components/Badge';
 import EmptyState from '../../components/EmptyState';
 import PageHeader from '../../components/PageHeader';
 import Button from '../../components/Button';
 import { useToast } from '../../components/Toast';
-import { Cpu, PlusCircle, ShieldAlert, KeyRound, Monitor, CheckCircle, RefreshCw } from 'lucide-react';
+import { StampBadge, SeatMap, LedgerTable, MarginNote } from '../../components/signature';
+import { Cpu, PlusCircle, ShieldAlert, KeyRound, Monitor, CheckCircle, RefreshCw, Trash2 } from 'lucide-react';
 
 export default function ExamPcs() {
   const { toast } = useToast();
@@ -208,18 +208,18 @@ export default function ExamPcs() {
       key: 'computer_status',
       label: 'PC Status',
       render: (r) => (
-        <Badge variant={r.computer_status === 'available' ? 'success' : 'warning'}>
-          {r.computer_status}
-        </Badge>
+        <StampBadge variant={r.computer_status === 'available' ? 'success' : 'warning'} size="sm">
+          {r.computer_status?.toUpperCase()}
+        </StampBadge>
       ),
     },
     {
       key: 'agent_status',
       label: 'Agent Link',
       render: (r) => (
-        <Badge variant={r.agent_status === 'online' ? 'success' : 'neutral'}>
-          {r.agent_status === 'online' ? 'Online' : 'Offline'}
-        </Badge>
+        <StampBadge variant={r.agent_status === 'online' ? 'success' : 'neutral'} size="sm">
+          {r.agent_status === 'online' ? 'ONLINE' : 'OFFLINE'}
+        </StampBadge>
       ),
     },
     {
@@ -277,6 +277,26 @@ export default function ExamPcs() {
           </div>
         }
       />
+
+      {/* Lab Terminal Floor Plan Grid */}
+      {pcs.length > 0 && (
+        <SeatMap
+          pcs={pcs.map((p) => ({
+            ...p,
+            status: p.agent_status === 'online' ? 'online' : p.computer_status || 'offline',
+            is_allocated: p.session_id != null || p.computer_status === 'in_use',
+            current_student_name: p.student_name,
+          }))}
+          selectedPcId={allocPcId}
+          onSelectPc={(pc) => {
+            setAllocPcId(pc.id);
+            if (pc.computer_status === 'available') {
+              setShowAllocate(true);
+            }
+          }}
+          columnsCount={5}
+        />
+      )}
 
       {/* Enrollment Code Alert Box */}
       {enrollmentResult && (
@@ -494,7 +514,7 @@ export default function ExamPcs() {
               Allocated PCs with active or scheduled testing.
             </p>
           </div>
-          <Badge variant="gold">{activeSessions.length} Assigned</Badge>
+          <StampBadge variant="gold" size="sm">{activeSessions.length} ASSIGNED</StampBadge>
         </div>
 
         {activeSessions.length === 0 ? (
@@ -530,9 +550,9 @@ export default function ExamPcs() {
                       </div>
                     </td>
                     <td className="py-3 px-3">
-                      <Badge variant={session.session_status === 'active' ? 'success' : 'info'}>
-                        {session.session_status}
-                      </Badge>
+                      <StampBadge variant={session.session_status === 'active' ? 'success' : 'info'} size="sm">
+                        {session.session_status?.toUpperCase()}
+                      </StampBadge>
                     </td>
                     <td className="py-3 px-3">
                       <code className="text-xs font-mono bg-[var(--bg-subtle)] px-2 py-0.5 rounded border border-[var(--border-color)] text-[var(--text-primary)]">

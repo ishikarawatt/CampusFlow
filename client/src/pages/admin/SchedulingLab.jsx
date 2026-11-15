@@ -7,11 +7,10 @@ import { schedule as scheduleApi, drives as drivesApi, errMsg } from '../../api.
 import { useToast } from '../../components/Toast.jsx';
 import { formatDate } from '../../utils.js';
 import PageHeader from '../../components/PageHeader.jsx';
-import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
-import StatCard from '../../components/StatCard.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
+import { TimelineRule, StampBadge, LedgerTable, MarginNote } from '../../components/signature';
 import { Calendar, Clock, Sparkles, RefreshCw, BarChart2, ShieldCheck, AlertCircle } from 'lucide-react';
 
 const ALGOS = [
@@ -198,7 +197,7 @@ export default function SchedulingLab() {
             </select>
             {selected && (
               <div className="flex items-center gap-2 mt-2">
-                <Badge variant="info">{selected.status}</Badge>
+                <StampBadge variant="info" size="sm">{selected.status?.toUpperCase()}</StampBadge>
                 <span className="text-xs font-mono text-[var(--text-muted)]">
                   {selected.company?.name}
                 </span>
@@ -386,32 +385,61 @@ export default function SchedulingLab() {
                 </div>
               )}
 
-              {/* Timeline Slot List */}
-              <div className="space-y-2 max-h-96 overflow-y-auto slim-scroll pr-1">
-                {result.timeline?.map((slot, i) => (
-                  <div
-                    key={i}
-                    className="p-3.5 rounded-[6px] border border-[var(--border-color)] bg-[var(--bg-subtle)] flex items-center justify-between text-xs font-mono"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded-[4px] bg-[#D9B36C] text-[#0B1F1A] font-bold flex items-center justify-center shrink-0">
-                        {i + 1}
+              {/* TimelineRule Gantt Visualizer */}
+              {result.timeline?.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-midnight/50 dark:text-brandMuted font-bold block">
+                    INTERVIEW PANEL TIMELINE RULER
+                  </span>
+                  <TimelineRule
+                    gantt={result.timeline.map((slot, i) => ({
+                      id: i,
+                      label: `${slot.student_name} (P${slot.panel})`,
+                      start: i * 15,
+                      end: (i + 1) * 15,
+                    }))}
+                    ticks={Math.min(result.timeline.length, 6)}
+                    unitLabel="min"
+                  />
+                </div>
+              )}
+
+              {/* Timeline Slot LedgerTable */}
+              <LedgerTable
+                columns={[
+                  {
+                    header: '#',
+                    accessor: (_, idx) => `#${String(idx + 1).padStart(2, '0')}`,
+                    mono: true,
+                    className: 'w-12',
+                  },
+                  {
+                    header: 'CANDIDATE',
+                    accessor: 'student_name',
+                    render: (slot) => (
+                      <span className="font-serif font-bold text-sm text-midnight dark:text-ivory">
+                        {slot.student_name}
                       </span>
-                      <div>
-                        <div className="font-serif font-bold text-sm text-[var(--text-primary)]">
-                          {slot.student_name}
-                        </div>
-                        <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                          Panel {slot.panel} · {slot.venue || 'Lab TBA'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right text-[var(--text-secondary)] font-bold">
-                      {formatDate(slot.starts_at)}
-                    </div>
-                  </div>
-                ))}
-              </div>
+                    ),
+                  },
+                  {
+                    header: 'PANEL / VENUE',
+                    render: (slot) => (
+                      <span className="font-mono text-xs">
+                        Panel {slot.panel} • {slot.venue || 'Interview Chamber'}
+                      </span>
+                    ),
+                  },
+                  {
+                    header: 'SCHEDULED TIME',
+                    accessor: 'starts_at',
+                    mono: true,
+                    render: (slot) => formatDate(slot.starts_at),
+                  },
+                ]}
+                data={result.timeline || []}
+                keyField="id"
+              />
             </div>
           )}
         </div>

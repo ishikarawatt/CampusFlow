@@ -16,6 +16,16 @@ import FilterBar from '../../components/FilterBar.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import Modal from '../../components/Modal.jsx';
 import Pagination from '../../components/Pagination.jsx';
+import SlideOver from '../../components/SlideOver.jsx';
+import {
+  StampBadge,
+  LedgerStrip,
+  LedgerTable,
+  Dossier,
+  AdmitCard,
+  TimelineRule,
+  MarginNote,
+} from '../../components/signature';
 import {
   Calendar,
   Users,
@@ -84,6 +94,7 @@ export default function RecruiterDriveDetail() {
   });
 
   // Dialog States
+  const [inspectedApplicant, setInspectedApplicant] = useState(null);
   const [bulkActionTarget, setBulkActionTarget] = useState(null); // 'shortlist' | 'reject'
   const [withdrawOfferTarget, setWithdrawOfferTarget] = useState(null); // offer object
   const [scheduleConfirmOpen, setScheduleConfirmOpen] = useState(false);
@@ -408,9 +419,9 @@ export default function RecruiterDriveDetail() {
             <span className="text-xs font-mono font-bold uppercase tracking-wider text-[var(--text-muted)]">
               Current Pipeline Stage:
             </span>
-            <Badge variant={STAGE_META[stage]?.variant ?? 'neutral'}>
+            <StampBadge variant={STAGE_META[stage]?.variant ?? 'neutral'} size="sm">
               {STAGE_META[stage]?.label ?? stage}
-            </Badge>
+            </StampBadge>
           </div>
           <span className="text-xs text-[var(--text-muted)] font-mono">
             Drive Deadline: {formatDate(drive.application_deadline)}
@@ -442,17 +453,19 @@ export default function RecruiterDriveDetail() {
       {/* Tab: Overview */}
       {tab === 'overview' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <StatCard label="Applied" value={pipeline?.applied ?? 0} icon={<Users className="w-5 h-5" />} />
-            <StatCard label="Tests Taken" value={pipeline?.tests_taken ?? 0} icon={<Award className="w-5 h-5" />} />
-            <StatCard label="Shortlisted" value={pipeline?.shortlisted ?? 0} icon={<CheckCircle2 className="w-5 h-5" />} />
-            <StatCard label="Selected / Offers" value={pipeline?.selected ?? offers.length} icon={<DollarSign className="w-5 h-5" />} />
-          </div>
+          <LedgerStrip
+            items={[
+              { label: 'APPLICANTS', value: pipeline?.applied ?? 0, unit: 'Submissions' },
+              { label: 'ASSESSMENTS TAKEN', value: pipeline?.tests_taken ?? 0, unit: 'Evaluated' },
+              { label: 'SHORTLISTED', value: pipeline?.shortlisted ?? 0, unit: 'Candidates' },
+              { label: 'OFFERS REGISTERED', value: pipeline?.selected ?? offers.length, unit: 'Extended' },
+            ]}
+          />
 
-          <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle space-y-3">
-            <h3 className="text-base font-serif font-bold text-[var(--text-primary)]">Job Description</h3>
-            <p className="text-sm text-[var(--text-secondary)] whitespace-pre-line leading-relaxed">
-              {drive.description || 'No description provided for this placement drive.'}
+          <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border p-6 shadow-xs space-y-3">
+            <h3 className="text-base font-serif font-bold text-midnight dark:text-ivory">Job Description & Position Profile</h3>
+            <p className="text-sm text-midnight/80 dark:text-brandMuted whitespace-pre-line leading-relaxed">
+              {drive.description || 'No formal job description provided for this placement drive.'}
             </p>
           </div>
         </div>
@@ -616,11 +629,12 @@ export default function RecruiterDriveDetail() {
                       return (
                         <tr
                           key={a.id}
-                          className={`hover:bg-[var(--bg-subtle)]/50 transition-colors ${
-                            isSelected ? 'bg-[#D9B36C]/5' : ''
+                          onClick={() => setInspectedApplicant(a)}
+                          className={`hover:bg-[#FAF7F0] dark:hover:bg-midnight/60 transition-colors cursor-pointer ${
+                            isSelected ? 'bg-amber-50/40 dark:bg-amber-950/20' : ''
                           }`}
                         >
-                          <td className="p-3 text-center">
+                          <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               onClick={() => toggleSelectApp(a.id)}
@@ -634,7 +648,7 @@ export default function RecruiterDriveDetail() {
                             </button>
                           </td>
                           <td className="p-3">
-                            <div className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                            <div className="font-serif font-bold text-sm text-[var(--text-primary)] hover:text-emerald dark:hover:text-emerald-light transition-colors">
                               {a.name}
                             </div>
                             <div className="text-[11px] text-[var(--text-muted)] font-mono">{a.email}</div>
@@ -655,9 +669,9 @@ export default function RecruiterDriveDetail() {
                             )}
                           </td>
                           <td className="p-3">
-                            <Badge variant={STATUS_VARIANT[a.status] ?? 'neutral'}>
-                              {a.status?.replace('_', ' ')}
-                            </Badge>
+                            <StampBadge variant={STATUS_VARIANT[a.status] || 'neutral'} size="sm">
+                              {a.status?.replace('_', ' ').toUpperCase()}
+                            </StampBadge>
                           </td>
                           <td className="p-3 text-right">
                             {a.has_resume ? (
@@ -807,7 +821,7 @@ export default function RecruiterDriveDetail() {
                           {off.joining_date ? new Date(off.joining_date).toLocaleDateString() : 'TBD'}
                         </td>
                         <td className="p-3">
-                          <Badge
+                          <StampBadge
                             variant={
                               off.status === 'accepted'
                                 ? 'success'
@@ -815,9 +829,10 @@ export default function RecruiterDriveDetail() {
                                 ? 'gold'
                                 : 'neutral'
                             }
+                            size="sm"
                           >
                             {off.status?.toUpperCase()}
-                          </Badge>
+                          </StampBadge>
                         </td>
                         <td className="p-3 font-mono text-[11px] text-[var(--text-muted)]">
                           {off.responded_at ? new Date(off.responded_at).toLocaleDateString() : 'Awaiting response'}
@@ -989,6 +1004,89 @@ export default function RecruiterDriveDetail() {
         onConfirm={handlePublishResults}
         onCancel={() => setPublishConfirmOpen(false)}
       />
+
+      {/* Slide-over Applicant Dossier Inspector */}
+      <SlideOver
+        isOpen={Boolean(inspectedApplicant)}
+        onClose={() => setInspectedApplicant(null)}
+        title={inspectedApplicant?.name ?? 'Candidate Dossier'}
+        subtitle={inspectedApplicant?.roll_no ?? 'Applicant'}
+        width="wide"
+      >
+        {inspectedApplicant && (
+          <Dossier
+            title={inspectedApplicant.name}
+            subTitle={`${inspectedApplicant.branch} • Placement Applicant`}
+            registrationCode={inspectedApplicant.roll_no}
+            status={inspectedApplicant.status?.replace('_', ' ').toUpperCase()}
+            statusVariant={STATUS_VARIANT[inspectedApplicant.status] || 'neutral'}
+            fields={[
+              { label: 'CANDIDATE EMAIL', value: inspectedApplicant.email },
+              { label: 'INSTITUTIONAL ROLL NO', value: inspectedApplicant.roll_no },
+              { label: 'ACADEMIC DEPARTMENT', value: inspectedApplicant.branch },
+              { label: 'CUMULATIVE CGPA', value: `${inspectedApplicant.cgpa?.toFixed(2)} / 10.0` },
+              { label: 'ACTIVE BACKLOGS', value: String(inspectedApplicant.backlogs ?? 0) },
+              {
+                label: 'APTITUDE SCORE',
+                value:
+                  inspectedApplicant.test_score != null
+                    ? `${inspectedApplicant.test_score.toFixed(1)}%`
+                    : 'Not Evaluated',
+              },
+            ]}
+            documents={
+              inspectedApplicant.has_resume
+                ? [
+                    {
+                      name: `${inspectedApplicant.name} - Verified Resume.pdf`,
+                      meta: 'OFFICIAL STUDENT RESUME',
+                      action: (
+                        <a
+                          href={inspectedApplicant.resume_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="px-2.5 py-1 text-xs font-mono font-semibold text-emerald hover:underline border border-emerald-700/30 rounded"
+                        >
+                          Download PDF ↗
+                        </a>
+                      ),
+                    },
+                  ]
+                : []
+            }
+            actions={
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => {
+                    handleBulkAction('reject');
+                    setInspectedApplicant(null);
+                  }}
+                >
+                  Reject
+                </Button>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setOfferForm({
+                      application_id: inspectedApplicant.id,
+                      package_lpa: drive.package_lpa || '',
+                      joining_date: '',
+                      note: '',
+                    });
+                    setExtendOfferModalOpen(true);
+                    setInspectedApplicant(null);
+                  }}
+                >
+                  Extend Placement Offer
+                </Button>
+              </div>
+            }
+          />
+        )}
+      </SlideOver>
     </div>
   );
 }

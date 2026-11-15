@@ -5,11 +5,10 @@ import React, { useEffect, useState } from 'react';
 import { users as usersApi, errMsg } from '../../api.js';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import DataTable from '../../components/DataTable.jsx';
-import Badge from '../../components/Badge.jsx';
 import EmptyState from '../../components/EmptyState.jsx';
 import Button from '../../components/Button.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
+import { StampBadge, LedgerTable, MarginNote } from '../../components/signature';
 import { Users as UsersIcon, UserPlus, Shield } from 'lucide-react';
 
 const ROLE_PILL = { admin: 'danger', recruiter: 'gold', student: 'success' };
@@ -183,11 +182,18 @@ export default function Users() {
         </form>
       )}
 
-      <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] shadow-subtle overflow-hidden">
-        <div className="px-5 py-4 border-b border-[var(--border-color)]">
-          <h3 className="font-serif font-bold text-base text-[var(--text-primary)]">
+      <MarginNote title="REGISTRAR ACCESS CONTROL" variant="gold">
+        User privilege rings are enforced strictly via JWT authentication and database foreign keys. Only System Operators (admin role) can create staff accounts and supervise examination kernels.
+      </MarginNote>
+
+      <div className="bg-white dark:bg-midnight-surface rounded-[6px] border border-[#D9CEBA] dark:border-midnight-border shadow-xs overflow-hidden">
+        <div className="px-5 py-3.5 bg-[#FAF7F0] dark:bg-midnight-dark border-b border-[#E8E0D0] dark:border-midnight-border flex items-center justify-between">
+          <h3 className="font-serif font-bold text-sm text-midnight dark:text-ivory">
             User Accounts Directory
           </h3>
+          <span className="text-xs font-mono text-midnight/60 dark:text-brandMuted">
+            {rows.length} Enrolled Users
+          </span>
         </div>
 
         {unavailable ? (
@@ -196,40 +202,40 @@ export default function Users() {
             message="Check that the database is connected and migrations are up to date."
           />
         ) : (
-          <DataTable
+          <LedgerTable
             columns={[
               {
-                key: 'name',
-                label: 'Name',
+                header: 'FULL NAME',
+                accessor: 'name',
                 render: (u) => (
-                  <span className="font-serif font-bold text-sm text-[var(--text-primary)]">
+                  <span className="font-serif font-bold text-sm text-midnight dark:text-ivory">
                     {u.name}
                   </span>
                 ),
               },
               {
-                key: 'email',
-                label: 'Email',
+                header: 'EMAIL ADDRESS',
+                accessor: 'email',
+                mono: true,
                 render: (u) => (
-                  <span className="font-mono text-xs text-[var(--text-secondary)]">
+                  <span className="text-xs text-midnight/80 dark:text-brandMuted">
                     {u.email}
                   </span>
                 ),
               },
               {
-                key: 'role',
-                label: 'Privilege Level',
+                header: 'PRIVILEGE LEVEL',
+                accessor: 'role',
                 render: (u) => (
-                  <Badge variant={ROLE_PILL[u.role] ?? 'neutral'}>
+                  <StampBadge variant={ROLE_PILL[u.role] ?? 'neutral'} size="sm">
                     {u.role?.toUpperCase()}
-                  </Badge>
+                  </StampBadge>
                 ),
               },
               {
-                key: 'meta',
-                label: 'Profile Meta',
+                header: 'PROFILE METADATA',
                 render: (u) => (
-                  <span className="font-mono text-xs text-[var(--text-muted)]">
+                  <span className="font-mono text-xs text-midnight/60 dark:text-brandMuted">
                     {u.role === 'student'
                       ? `${u.branch || 'CSE'} · CGPA ${u.cgpa || '8.0'}`
                       : u.role === 'recruiter'
@@ -239,7 +245,8 @@ export default function Users() {
                 ),
               },
             ]}
-            rows={rows}
+            data={rows}
+            keyField="id"
           />
         )}
       </div>

@@ -10,8 +10,8 @@ import { drives as drivesApi, companies as companiesApi, errMsg } from '../../ap
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
 import Stepper from '../../components/Stepper.jsx';
-import Badge from '../../components/Badge.jsx';
 import Button from '../../components/Button.jsx';
+import { StampBadge, MarginNote } from '../../components/signature';
 import { PlusCircle, Trash2, CheckCircle2 } from 'lucide-react';
 
 const BRANCHES = ['CSE', 'IT', 'ECE', 'ME', 'CE', 'EE'];
@@ -219,6 +219,10 @@ export default function NewDriveWizard() {
           { label: 'Add Drive' },
         ]}
       />
+
+      <MarginNote title="DRIVE BLUEPRINT DIRECTIVE" variant="neutral">
+        Placement drive parameters dictate automated lab scheduling and kernel proctoring. Once questions are locked and applications open, minimum CGPA and test duration settings are binding.
+      </MarginNote>
 
       {/* Stepper Header */}
       <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-5 shadow-subtle">

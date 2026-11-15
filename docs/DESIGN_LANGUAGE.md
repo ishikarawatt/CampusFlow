@@ -102,3 +102,4 @@ Document slide-over presentation for candidates, companies, and exam PCs.
 
 ### 12. TimelineRule (`client/src/components/signature/TimelineRule.jsx`)
 Architectural Gantt chart with hairline tick marks, mono hour/date markers, and crisp schedule bars.
+

@@ -5,11 +5,10 @@ import { useAuth } from '../../auth.jsx';
 import { recruiter as recruiterApi, drives as drivesApi, errMsg } from '../../api.js';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import StatCard from '../../components/StatCard.jsx';
 import Button from '../../components/Button.jsx';
 import Skeleton from '../../components/Skeleton.jsx';
-import Badge from '../../components/Badge.jsx';
 import Modal from '../../components/Modal.jsx';
+import { StampBadge, LedgerStrip } from '../../components/signature';
 import {
   Building2,
   Globe,
@@ -148,7 +147,9 @@ export default function RecruiterCompany() {
                 <h2 className="text-2xl font-serif font-bold text-[var(--text-primary)]">
                   {comp.name}
                 </h2>
-                <Badge variant="success">Verified Partner</Badge>
+                <StampBadge variant="success" size="sm">
+                  VERIFIED PARTNER
+                </StampBadge>
               </div>
               <p className="text-xs text-[var(--text-muted)] font-mono mt-1">
                 {comp.industry || comp.sector || 'Industry Partner'}
@@ -190,16 +191,18 @@ export default function RecruiterCompany() {
         </div>
       </div>
 
-      {/* Quick Statistics */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Total Drives" value={drives.length} icon={<Briefcase className="w-5 h-5" />} />
-        <StatCard label="Active Drives" value={activeDrives.length} icon={<Building2 className="w-5 h-5" />} />
-        <StatCard
-          label="Total Applicants"
-          value={drives.reduce((acc, d) => acc + (d.counts?.applied || 0), 0)}
-          icon={<Briefcase className="w-5 h-5" />}
-        />
-      </div>
+      {/* Quick Statistics Ledger Strip */}
+      <LedgerStrip
+        items={[
+          { label: 'REGISTERED DRIVES', value: drives.length, unit: 'Cycles' },
+          { label: 'ACTIVE PIPELINES', value: activeDrives.length, unit: 'Ongoing' },
+          {
+            label: 'CANDIDATE APPLICATIONS',
+            value: drives.reduce((acc, d) => acc + (d.counts?.applied || 0), 0),
+            unit: 'Total',
+          },
+        ]}
+      />
 
       {/* Active Drives */}
       <div className="bg-[var(--bg-surface)] rounded-[10px] border border-[var(--border-color)] p-6 shadow-subtle">

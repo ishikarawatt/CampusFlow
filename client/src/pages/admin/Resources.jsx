@@ -6,10 +6,8 @@ import { resources as resourcesApi, allocations as allocationsApi, errMsg } from
 import { formatDate, titleCase } from '../../utils.js';
 import { useToast } from '../../components/Toast.jsx';
 import PageHeader from '../../components/PageHeader.jsx';
-import Badge from '../../components/Badge.jsx';
-import DataTable from '../../components/DataTable.jsx';
 import Button from '../../components/Button.jsx';
-import StatCard from '../../components/StatCard.jsx';
+import { LedgerStrip, LedgerTable, StampBadge, MarginNote } from '../../components/signature';
 import Skeleton from '../../components/Skeleton.jsx';
 import { Boxes, Building2, ShieldCheck, PlusCircle, AlertCircle } from 'lucide-react';
 
